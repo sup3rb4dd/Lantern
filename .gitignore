@@ -1,0 +1,8 @@
+# Build output
+dist/
+*.exe
+*.zip
+
+# Content and runtime files, if someone runs Lantern from the repo
+lantern/
+*.log

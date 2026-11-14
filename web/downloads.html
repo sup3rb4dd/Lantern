@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Downloads · Lantern</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5B947" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <span><b>Lantern</b><small>Offline knowledge drive</small></span>
+  </a>
+  <nav class="nav" aria-label="Main">
+    <a href="/" data-id="home">Home</a>
+    <a href="/maps.html" data-id="maps">Maps</a>
+    <a href="/downloads.html" data-id="downloads">Downloads</a>
+  </nav>
+  <span class="pill"><span class="dot" style="background:#5B9BF0"></span>Needs internet for this page</span>
+</header>
+
+<main>
+  <h1>Downloads</h1>
+  <p class="lead">Choose what goes on the drive. Downloads run one at a time. If one gets interrupted, start it again and it picks up where it left off.</p>
+
+  <div class="card" style="margin-bottom:8px">
+    <div class="row" style="margin-bottom:10px">
+      <div class="grow title">Drive space</div>
+      <div class="muted small" id="spaceText">…</div>
+    </div>
+    <div class="bar"><i id="spaceBar"></i></div>
+    <div class="muted small" style="margin-top:8px" id="selText">Nothing selected.</div>
+  </div>
+
+  <section id="queueWrap" class="hidden">
+    <div class="row" style="margin-top:28px">
+      <h2 class="grow" style="margin:0">In progress</h2>
+      <button class="btn ghost" id="clearBtn" type="button">Clear finished</button>
+    </div>
+    <div class="list" id="queue" style="margin-top:12px"></div>
+  </section>
+
+  <h2>Recommended content</h2>
+  <p class="muted small" style="margin-top:-4px">Sizes come live from the Kiwix library. Pick one Wikipedia, not both. The Kiwix reader is added automatically the first time.</p>
+  <div class="list" id="picks"></div>
+  <div class="row" style="margin-top:14px">
+    <button class="btn" id="dlSelected" type="button" disabled>Download selected</button>
+    <span class="muted small" id="pickMsg"></span>
+  </div>
+
+  <h2 id="maps">Maps</h2>
+  <p class="muted small" style="margin-top:-4px">Cut from the latest OpenStreetMap world map. The exact size is measured when the download starts.</p>
+  <div class="list" id="regions"></div>
+  <details class="card" style="margin-top:10px">
+    <summary style="cursor:pointer;min-height:28px">Custom area</summary>
+    <p class="muted small">Enter a box as west longitude, south latitude, east longitude, north latitude. You can draw one at bboxfinder.com while online.</p>
+    <div class="row">
+      <div><label for="bbox">Area</label><br><input id="bbox" type="text" placeholder="-98.0,35.2,-97.1,35.8" style="width:300px"></div>
+      <div><label for="zoom">Detail (max zoom 6–15)</label><br><input id="zoom" type="number" min="6" max="15" value="14" style="width:120px"></div>
+      <button class="btn" id="customBtn" type="button" style="align-self:flex-end">Download area</button>
+    </div>
+  </details>
+
+  <h2>Search the Kiwix library</h2>
+  <p class="muted small" style="margin-top:-4px">Thousands of other offline collections: survival guides, Stack Exchange sites, TED talks, textbooks and more.</p>
+  <form id="searchForm" class="row" role="search">
+    <label for="sq" class="hidden">Search the library</label>
+    <input id="sq" type="search" placeholder="Search, e.g. survival, first aid, gardening" style="flex:1 1 320px;max-width:620px">
+    <button class="btn" type="submit">Search</button>
+  </form>
+  <div class="chips" id="chips"></div>
+  <div class="list" id="results"></div>
+
+  <h2>On this drive</h2>
+  <div class="list" id="installed"></div>
+</main>
+
+<script src="common.js"></script>
+<script>
+Lantern.markNav('downloads');
+
+const PICKS = [
+  { name: 'wikipedia_en_all_maxi', title: 'Wikipedia — full, with images', note: 'Best choice for a 512 GB or larger drive.' },
+  { name: 'wikipedia_en_all_nopic', title: 'Wikipedia — text only', note: 'Same articles, no pictures. Pick this instead of the full version on smaller drives.' },
+  { name: '__gut', title: 'Project Gutenberg books', note: 'Pick a subject, or the entire library. You can download several subjects one after another.', sections: true },
+  { name: 'wikipedia_en_medicine_maxi', title: 'WikiMed medical encyclopedia', note: 'Medical articles from Wikipedia, with images.' },
+  { name: 'ifixit_en_all', title: 'iFixit repair guides', note: 'Step-by-step repairs for electronics, tools and vehicles.' },
+  { name: 'wikibooks_en_all_maxi', title: 'Wikibooks', note: 'Free textbooks and how-to manuals.' },
+  { name: 'wikivoyage_en_all_maxi', title: 'Wikivoyage', note: 'Travel guides with maps and local info.' },
+];
+const CHIPS = ['survival', 'post-disaster', 'first aid', 'water', 'food preparation', 'knots', 'gardening', 'stack exchange'];
+
+let status = null;
+const sizes = {};      // catalog name -> size
+const selected = new Set();
+let gutChoice = 'gutenberg_en_lcc-pz';   // current Gutenberg subject in the dropdown
+let gutSections = [];                     // [{name, size}] from the catalog
+const realName = n => n === '__gut' ? gutChoice : n;
+const pickTitle = p => p.sections ? 'Gutenberg: ' + Lantern.gutenbergLabel(gutChoice) : p.title;
+const installedNames = () => new Set((status?.zims || []).map(z => z.name.replace(/_\d{4}-\d{2}$/, '')));
+
+function updateSpace() {
+  if (!status) return;
+  const used = status.diskTotal - status.diskFree;
+  document.getElementById('spaceText').textContent =
+    Lantern.bytes(status.diskFree) + ' free of ' + Lantern.bytes(status.diskTotal);
+  document.getElementById('spaceBar').style.width = (status.diskTotal ? (used / status.diskTotal * 100) : 0) + '%';
+  let need = 0;
+  selected.forEach(n => need += sizes[realName(n)] || 0);
+  const t = document.getElementById('selText');
+  document.getElementById('dlSelected').disabled = !selected.size;
+  if (!selected.size) { t.textContent = 'Nothing selected.'; t.style.color = ''; return; }
+  t.textContent = 'Selected: about ' + Lantern.bytes(need) + (need > status.diskFree ? ' — more than the free space!' : ' — fits.');
+  t.style.color = need > status.diskFree ? '#F07A6E' : '';
+  document.getElementById('dlSelected').disabled = false;
+}
+
+function gutSelect() {
+  const opts = gutSections.length ? gutSections : [{ name: gutChoice, size: sizes[gutChoice] }];
+  return `<label for="gutSel" class="hidden">Gutenberg subject</label>
+    <select id="gutSel" style="width:100%;max-width:520px;margin-top:10px">
+      ${opts.map(o => `<option value="${o.name}" ${o.name === gutChoice ? 'selected' : ''}>${Lantern.esc(Lantern.gutenbergLabel(o.name))}${o.size ? ' · ' + Lantern.bytes(o.size) : ''}</option>`).join('')}
+    </select>`;
+}
+
+function renderPicks() {
+  const have = installedNames();
+  document.getElementById('picks').innerHTML = PICKS.map(p => {
+    const name = realName(p.name);
+    const inst = have.has(name);
+    const size = sizes[name];
+    const gutHave = p.sections ? [...have].filter(n => n.startsWith('gutenberg_')) : [];
+    return `<div class="card row">
+      <input type="checkbox" id="pk_${p.name}" data-name="${p.name}" ${selected.has(p.name) ? 'checked' : ''} ${inst ? 'disabled' : ''} style="width:22px;height:22px">
+      <div class="grow">
+        <label for="pk_${p.name}" style="font-size:16px;color:var(--text);cursor:pointer;display:block">
+          <span class="title">${Lantern.esc(p.title)}</span>
+          <span class="muted small" style="display:block;margin-top:3px">${Lantern.esc(p.note)}</span>
+        </label>
+        ${p.sections ? gutSelect() : ''}
+        ${gutHave.length ? `<div class="small" style="margin-top:8px;color:#4CC38A">On drive: ${gutHave.map(n => Lantern.esc(Lantern.gutenbergLabel(n))).join(', ')}</div>` : ''}
+      </div>
+      <span class="muted small" style="min-width:80px;text-align:right">${size === undefined ? '…' : size === null ? 'unavailable' : Lantern.bytes(size)}</span>
+      ${inst ? '<span class="tag ok">ON DRIVE</span>' : `<button class="btn ghost" type="button" data-dl="${p.name}">Download</button>`}
+    </div>`;
+  }).join('');
+  const sel = document.getElementById('gutSel');
+  if (sel) sel.onchange = () => { gutChoice = sel.value; renderPicks(); updateSpace(); };
+}
+
+async function loadGutenbergSections() {
+  try {
+    const r = await Lantern.api('/api/catalog?q=gutenberg');
+    if (!r.results) return;
+    gutSections = r.results
+      .filter(e => /^gutenberg_en_(lcc-[a-z]+|all)$/.test(e.name) && e.size > 50e6)
+      .map(e => ({ name: e.name, size: e.size }));
+    gutSections.forEach(e => sizes[e.name] = e.size);
+    // Entire library last; subjects A–Z by friendly name.
+    gutSections.sort((a, b) => (a.name === 'gutenberg_en_all') - (b.name === 'gutenberg_en_all')
+      || Lantern.gutenbergLabel(a.name).localeCompare(Lantern.gutenbergLabel(b.name)));
+    renderPicks(); updateSpace();
+  } catch {}
+}
+
+async function loadSizes() {
+  loadGutenbergSections();
+  await Promise.all(PICKS.filter(p => !p.sections).map(async p => {
+    try {
+      const r = await Lantern.api('/api/catalog?name=' + encodeURIComponent(p.name));
+      sizes[p.name] = r.results && r.results[0] ? r.results[0].size : null;
+      if (r.error) document.getElementById('pickMsg').textContent = r.error;
+    } catch { sizes[p.name] = null; }
+    renderPicks();
+  }));
+  updateSpace();
+}
+
+function renderRegions() {
+  const have = new Set((status?.maps || []).map(m => m.file));
+  document.getElementById('regions').innerHTML = status.mapRegions.map(r => `
+    <div class="card row">
+      <div class="grow"><div class="title">${Lantern.esc(r.title)}</div>
+      <div class="muted small" style="margin-top:3px">${Lantern.esc(r.desc)}</div></div>
+      ${have.has(r.file) ? '<span class="tag ok">ON DRIVE</span>' : ''}
+      <button class="btn ghost" type="button" data-region="${r.id}">${have.has(r.file) ? 'Update' : 'Download'}</button>
+    </div>`).join('');
+}
+
+function renderInstalled() {
+  const items = [
+    ...status.zims.map(z => ({ file: z.file, label: Lantern.prettyName(z.name), size: z.size })),
+    ...status.maps.map(m => ({ file: m.file, label: 'Map: ' + m.name.replace(/-/g, ' '), size: m.size })),
+  ];
+  document.getElementById('installed').innerHTML = items.length ? items.map(i => `
+    <div class="card row">
+      <div class="grow"><div class="title">${Lantern.esc(i.label)}</div><div class="muted small">${Lantern.esc(i.file)} · ${Lantern.bytes(i.size)}</div></div>
+      <button class="btn danger" type="button" data-del="${Lantern.esc(i.file)}">Delete</button>
+    </div>`).join('') : '<p class="muted">Nothing yet.</p>';
+}
+
+async function refreshStatus() {
+  status = await Lantern.api('/api/status');
+  renderPicks(); renderRegions(); renderInstalled(); updateSpace();
+}
+
+async function start(job) {
+  const r = await Lantern.api('/api/download', job);
+  if (r.error) alertMsg(r.error);
+  pollJobs();
+}
+function alertMsg(m) { document.getElementById('pickMsg').textContent = m; }
+
+let lastDone = 0;
+async function pollJobs() {
+  const { jobs } = await Lantern.api('/api/jobs');
+  const wrap = document.getElementById('queueWrap');
+  wrap.classList.toggle('hidden', !jobs.length);
+  document.getElementById('queue').innerHTML = jobs.map(j => {
+    const pct = j.total ? Math.min(100, j.bytes / j.total * 100) : 0;
+    const busy = j.status === 'running' && !j.total;
+    const eta = j.speed > 0 && j.total ? Lantern.duration((j.total - j.bytes) / j.speed) + ' left' : '';
+    const tag = { queued: '<span class="tag grey">QUEUED</span>', running: '<span class="tag">DOWNLOADING</span>',
+      done: '<span class="tag ok">DONE</span>', error: '<span class="tag" style="background:#F07A6E">FAILED</span>',
+      canceled: '<span class="tag grey">STOPPED</span>' }[j.status];
+    return `<div class="card">
+      <div class="row" style="margin-bottom:10px">
+        ${tag}<div class="grow title">${Lantern.esc(j.title || j.name)}</div>
+        ${(j.status === 'running' || j.status === 'queued') ? `<button class="btn danger" type="button" data-cancel="${j.id}">Stop</button>` : ''}
+      </div>
+      ${j.status === 'running' ? `<div class="bar${busy ? ' busy' : ''}"><i style="width:${pct}%"></i></div>` : ''}
+      <div class="muted small" style="margin-top:8px">
+        ${Lantern.esc(j.step)}
+        ${j.bytes ? ' · ' + Lantern.bytes(j.bytes) + (j.total ? ' of ' + Lantern.bytes(j.total) : '') : ''}
+        ${j.status === 'running' && j.speed ? ' · ' + Lantern.bytes(j.speed) + '/s' : ''}
+        ${eta ? ' · ' + eta : ''}
+      </div>
+      ${j.error ? `<div class="small" style="color:#F07A6E;margin-top:6px">${Lantern.esc(j.error)}</div>` : ''}
+    </div>`;
+  }).join('');
+  const done = jobs.filter(j => j.status === 'done').length;
+  if (done !== lastDone) { lastDone = done; refreshStatus(); }
+}
+
+async function search(q) {
+  const box = document.getElementById('results');
+  box.innerHTML = '<p class="muted">Searching…</p>';
+  const r = await Lantern.api('/api/catalog?q=' + encodeURIComponent(q));
+  if (r.error) { box.innerHTML = `<div class="banner err">${Lantern.esc(r.error)}</div>`; return; }
+  if (!r.results.length) { box.innerHTML = '<p class="muted">No matches.</p>'; return; }
+  box.innerHTML = r.results.map((e, i) => `
+    <div class="card row">
+      <div class="grow"><div class="title">${Lantern.esc(e.title)}</div>
+      <div class="muted small" style="margin-top:3px">${Lantern.esc(e.summary)}</div>
+      <div class="muted small" style="margin-top:3px">${Lantern.esc(e.file)}</div></div>
+      <span class="muted small">${Lantern.bytes(e.size)}</span>
+      <button class="btn ghost" type="button" data-sr="${i}">Download</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-sr]').forEach(b => b.onclick = () => {
+    const e = r.results[+b.dataset.sr];
+    start({ kind: 'zim', name: e.name, title: e.title });
+    b.disabled = true; b.textContent = 'Queued';
+  });
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.dl) { const p = PICKS.find(x => x.name === t.dataset.dl); start({ kind: 'zim', name: realName(p.name), title: pickTitle(p) }); }
+  if (t.dataset.region) start({ kind: 'map', region: t.dataset.region });
+  if (t.dataset.cancel) Lantern.api('/api/cancel', { id: +t.dataset.cancel }).then(pollJobs);
+  if (t.dataset.del && confirm('Delete ' + t.dataset.del + ' from the drive? You would need to download it again.')) {
+    Lantern.api('/api/delete', { file: t.dataset.del }).then(r => { if (r.error) alertMsg(r.error); refreshStatus(); });
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.name) {
+    e.target.checked ? selected.add(e.target.dataset.name) : selected.delete(e.target.dataset.name);
+    if (selected.has('wikipedia_en_all_maxi') && selected.has('wikipedia_en_all_nopic')) {
+      alertMsg('Tip: you only need one Wikipedia. The full version already has all the text.');
+    }
+    updateSpace();
+  }
+});
+document.getElementById('dlSelected').onclick = async () => {
+  for (const n of selected) {
+    const p = PICKS.find(x => x.name === n);
+    await start({ kind: 'zim', name: realName(n), title: pickTitle(p) });
+  }
+  selected.clear(); renderPicks(); updateSpace();
+};
+document.getElementById('customBtn').onclick = () => start({
+  kind: 'map', region: 'custom', bbox: document.getElementById('bbox').value, maxzoom: +document.getElementById('zoom').value,
+});
+document.getElementById('clearBtn').onclick = () => Lantern.api('/api/clear', {}).then(pollJobs);
+document.getElementById('searchForm').onsubmit = e => { e.preventDefault(); const q = document.getElementById('sq').value.trim(); if (q) search(q); };
+document.getElementById('chips').innerHTML = CHIPS.map(c => `<button type="button" class="chip" data-chip="${c}">${c}</button>`).join('');
+document.getElementById('chips').addEventListener('click', e => {
+  const c = e.target.closest('[data-chip]'); if (!c) return;
+  document.getElementById('sq').value = c.dataset.chip; search(c.dataset.chip);
+});
+
+refreshStatus().then(loadSizes);
+pollJobs();
+setInterval(pollJobs, 1500);
+</script>
+</body>
+</html>

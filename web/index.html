@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lantern</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F5B947' stroke-width='2'%3E%3Cpath d='M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5B947" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <span><b>Lantern</b><small>Offline knowledge drive</small></span>
+  </a>
+  <nav class="nav" aria-label="Main">
+    <a href="/" data-id="home">Home</a>
+    <a href="/maps.html" data-id="maps">Maps</a>
+    <a href="/downloads.html" data-id="downloads">Downloads</a>
+  </nav>
+  <span class="pill"><span class="dot"></span><span id="drive">Running from the drive</span></span>
+</header>
+
+<main>
+  <h1>Everything you need, no signal required.</h1>
+  <p class="lead">Pick a section. Nothing here needs the internet once it's downloaded.</p>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <form id="searchForm" class="row hidden" style="margin-bottom:28px" role="search">
+    <label for="q" class="hidden">Search Wikipedia</label>
+    <input id="q" type="search" placeholder="Search Wikipedia…" style="flex:1 1 320px;max-width:620px" autocomplete="off">
+    <button class="btn" type="submit">Search</button>
+  </form>
+
+  <div class="grid" id="tiles"></div>
+
+  <div id="libraryWrap" class="hidden">
+    <h2>Everything on this drive</h2>
+    <div class="list" id="library"></div>
+  </div>
+</main>
+
+<script src="common.js"></script>
+<script>
+Lantern.markNav('home');
+let wikiName = null;
+
+function tile(href, title, desc, meta, off) {
+  return `<a class="tile${off ? ' off' : ''}" href="${href}">
+    <span class="t">${Lantern.esc(title)}</span>
+    <span class="d">${Lantern.esc(desc)}</span>
+    <span class="m">${Lantern.esc(meta)}</span></a>`;
+}
+
+async function load() {
+  const s = await Lantern.api('/api/status');
+  document.getElementById('drive').textContent =
+    'Offline · ' + Lantern.bytes(s.diskFree) + ' free on ' + s.drive;
+
+  const groups = { wikipedia: [], books: [], library: [] };
+  s.zims.forEach(z => groups[Lantern.classify(z)].push(z));
+  // Prefer the full Wikipedia if more than one is installed.
+  const wiki = groups.wikipedia.sort((a, b) => b.size - a.size)[0];
+  const books = groups.books.length === 1 ? groups.books[0] : null;
+  const bookCount = groups.books.length;
+  wikiName = wiki ? wiki.name : null;
+
+  const banner = document.getElementById('banner');
+  if (!s.zims.length && !s.maps.length) {
+    banner.innerHTML = 'Nothing is on this drive yet. <a href="/downloads.html">Open Downloads</a> to pick what to put on it. You only need internet for that step.';
+    banner.classList.remove('hidden');
+  } else if (s.kiwixError) {
+    banner.className = 'banner err';
+    banner.textContent = s.kiwixError;
+  }
+
+  document.getElementById('searchForm').classList.toggle('hidden', !wiki);
+
+  const libCount = groups.library.length;
+  const tiles = [
+    wiki ? tile(Lantern.bookUrl(wiki.name), 'Wikipedia', 'The English encyclopedia with full-text search.', Lantern.prettyName(wiki.name) + ' · ' + Lantern.bytes(wiki.size))
+         : tile('/downloads.html', 'Wikipedia', 'Not downloaded yet.', 'Open Downloads to add it', true),
+    books ? tile(Lantern.bookUrl(books.name), 'Books', 'Classic public-domain books from Project Gutenberg.', Lantern.prettyName(books.name).replace('Gutenberg: ', '') + ' · ' + Lantern.bytes(books.size))
+      : bookCount ? tile('#library', 'Books', 'Classic public-domain books from Project Gutenberg.', bookCount + ' subjects on this drive')
+      : tile('/downloads.html', 'Books', 'Not downloaded yet.', 'Open Downloads to add it', true),
+    libCount ? tile('#library', 'Survival & reference', 'Medical, repair, how-to and other guides.', libCount + ' collection' + (libCount > 1 ? 's' : ''))
+             : tile('/downloads.html', 'Survival & reference', 'Not downloaded yet.', 'Open Downloads to add guides', true),
+    s.maps.length ? tile('/maps.html', 'Maps', 'Street maps you can browse with no signal.', s.maps.length + ' map' + (s.maps.length > 1 ? 's' : '') + ' installed')
+                  : tile('/downloads.html#maps', 'Maps', 'Not downloaded yet.', 'Open Downloads to add a map', true),
+  ];
+  document.getElementById('tiles').innerHTML = tiles.join('');
+
+  const all = [...s.zims];
+  document.getElementById('libraryWrap').classList.toggle('hidden', !all.length);
+  document.getElementById('library').innerHTML = all.map(z => `
+    <div class="card row">
+      <div class="grow"><div class="title">${Lantern.esc(Lantern.prettyName(z.name))}</div>
+      <div class="muted small">${Lantern.bytes(z.size)}</div></div>
+      <a class="btn ghost" href="${Lantern.bookUrl(z.name)}">Open</a>
+    </div>`).join('');
+}
+
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const q = document.getElementById('q').value.trim();
+  if (!q || !wikiName) return;
+  location.href = '/kiwix/search?books.name=' + encodeURIComponent(wikiName) + '&pattern=' + encodeURIComponent(q);
+});
+
+load().catch(() => {
+  const b = document.getElementById('banner');
+  b.className = 'banner err';
+  b.textContent = 'Lantern stopped responding. Make sure the Lantern window is still open, then refresh this page.';
+});
+</script>
+</body>
+</html>
