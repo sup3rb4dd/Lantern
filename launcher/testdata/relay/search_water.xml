@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/"
+     xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Search: water</title>
+    <link>/kiwix/search?pattern=water&amp;books.name=wikipedia_en_test_maxi_2026-11&amp;books.name=zimgit-water_en_2026-11&amp;format=xml&amp;start=1&amp;pageLength=3</link>
+    <description>Search result for water</description>
+    <opensearch:totalResults>3</opensearch:totalResults>
+    <opensearch:startIndex>1</opensearch:startIndex>
+    <opensearch:itemsPerPage>3</opensearch:itemsPerPage>
+    <atom:link rel="search" type="application/opensearchdescription+xml" href="/kiwix/search/searchdescription.xml"/>
+    <opensearch:Query role="request"
+      searchTerms="water"
+      startIndex="1"
+      count="3"
+    />
+    <item>
+      <title>Water purification</title>
+      <link>/kiwix/content/wikipedia_en_test_maxi_2026-11/Water_purification</link>
+        <description><b>Water</b> purification For the album, see <b>Water</b> purification (album). Infobox junk should not appear <b>Water</b> purification is the process of removing undesirable chemicals, biological contaminants, suspended solids, and gases from <b>water</b>.[1] The goal is to produce <b>water</b> fit for specific purposes. Most <b>water</b> is purified and disinfected for human consumption (drinking <b>water</b>), but <b>water</b> purification may also be carried out for a variety of other purposes, including medical, pharmacological, chemical, and......</description>
+        <book>
+          <title>Wikipedia</title>
+        </book>
+        <wordCount>219</wordCount>
+    </item>
+    <item>
+      <title>Emergency water treatment</title>
+      <link>/kiwix/content/zimgit-water_en_2026-11/Emergency_water_treatment</link>
+        <description>Emergency <b>water</b> treatment If you have no other way to treat <b>water</b>, add 8 drops (1/8 teaspoon) of unscented household bleach per gallon of clear <b>water</b>. Stir and let it stand for 30 minutes. The <b>water</b> should have a slight chlorine odor. Cloudy <b>water</b> If the <b>water</b> is cloudy, let it settle and filter it through a clean cloth first, then use 16 drops per gallon....</description>
+        <book>
+          <title>Water survival guide</title>
+        </book>
+        <wordCount>66</wordCount>
+    </item>
+    <item>
+      <title>Water filter</title>
+      <link>/kiwix/content/wikipedia_en_test_maxi_2026-11/Water_filter</link>
+        <description><b>Water</b> filter A <b>water</b> filter removes impurities by lowering contamination of <b>water</b> using a fine physical barrier, a chemical process, or a biological process. Filters cleanse <b>water</b> to different extents, for purposes such as providing agricultural irrigation, accessible drinking <b>water</b>, public and private aquariums, and the safe use of ponds and swimming pools....</description>
+        <book>
+          <title>Wikipedia</title>
+        </book>
+        <wordCount>53</wordCount>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Lantern</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 14px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px 18px; }
+  .fields label { display: flex; flex-direction: column; gap: 6px; }
+  .fields input, .fields select { width: 100%; }
+  .log { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .log td, .log th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .log th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; color: var(--accent); }
+  .help li { margin: 6px 0; color: var(--soft); }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5B947" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <span><b>Lantern</b><small>Offline knowledge drive</small></span>
+  </a>
+  <nav class="nav" aria-label="Main">
+    <a href="/" data-id="home">Home</a>
+    <a href="/maps.html" data-id="maps">Maps</a>
+    <a href="/relay.html" data-id="relay">Relay</a>
+    <a href="/downloads.html" data-id="downloads">Downloads</a>
+  </nav>
+  <span class="pill"><span class="dot"></span>Works with no internet</span>
+</header>
+
+<main>
+  <h1>Lantern Relay</h1>
+  <p class="lead">Answer questions sent over Meshtastic with short answers from this drive. Plug a Meshtastic node into this computer by USB, choose who may ask, and turn Relay on.</p>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:12px">
+      <span id="stateTag" class="tag grey">OFF</span>
+      <div class="grow title" id="stateText">Relay is off.</div>
+      <button class="btn" id="toggleBtn" type="button">Turn Relay on</button>
+    </div>
+    <dl class="kv">
+      <dt>Gateway node</dt><dd id="myNode">—</dd>
+      <dt>Connected on</dt><dd id="port">—</dd>
+      <dt>Search</dt><dd id="search">—</dd>
+    </dl>
+  </div>
+
+  <h2>Who can ask</h2>
+  <p class="muted small" style="margin-top:-4px">Only these nodes get answers. Anyone else is ignored without a reply, and shows up below so you can let them in.</p>
+  <div class="list" id="allowed"></div>
+  <div id="ignoredWrap" class="hidden">
+    <h3 class="small muted" style="margin:18px 0 8px;font-weight:600">ASKED, BUT NOT ON THE LIST</h3>
+    <div class="list" id="ignored"></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <label for="heardSel" class="hidden">Nodes the gateway has heard</label>
+    <select id="heardSel" style="flex:1 1 280px"></select>
+    <button class="btn ghost" id="addHeard" type="button">Allow</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label for="manualId" class="hidden">Node ID</label>
+    <input id="manualId" type="text" placeholder="Or type a node ID, like !a1b2c3d4" style="flex:1 1 280px" autocomplete="off">
+    <button class="btn ghost" id="addManual" type="button">Allow</button>
+  </div>
+
+  <h2>Settings</h2>
+  <div class="card">
+    <div class="fields">
+      <label>Node connection
+        <select id="portSel"></select>
+      </label>
+      <label id="tcpWrap" class="hidden">WiFi address of the node
+        <input id="tcpAddr" type="text" placeholder="192.168.1.40" autocomplete="off">
+      </label>
+      <label>Channel for replies
+        <input id="channel" type="number" min="0" max="7" step="1">
+      </label>
+      <label>Most bytes per message
+        <input id="chunkBytes" type="number" min="80" max="228" step="1">
+      </label>
+      <label>Pause between messages (seconds)
+        <input id="pause" type="number" min="1" max="60" step="0.5">
+      </label>
+      <label>Messages per answer
+        <input id="perReply" type="number" min="1" max="10" step="1">
+      </label>
+    </div>
+    <p class="muted small" style="margin:14px 0 0">Channel 0 is the node's primary channel. Meshtastic text tops out a little over 200 bytes, and an emoji takes 4. Longer pauses are kinder to a busy mesh. After each answer the asker sends <code>?more</code> to get the next part.</p>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="saveBtn" type="button">Save settings</button>
+      <span class="muted small" id="saveMsg"></span>
+    </div>
+  </div>
+
+  <h2>Activity</h2>
+  <div class="card" style="padding:6px 8px;overflow-x:auto">
+    <table class="log">
+      <thead><tr><th>Time</th><th>From</th><th>Message</th><th>What happened</th></tr></thead>
+      <tbody id="log"><tr><td colspan="4" class="muted">No questions yet.</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>How to ask</h2>
+  <div class="card">
+    <p style="margin-top:0">Send a <b>direct message</b> to the gateway node, from FieldMap's Ask Lantern screen or any Meshtastic app:</p>
+    <ul class="help">
+      <li><code>?s water purification</code> searches everything on the drive and lists the top 3, like <span class="mono">1 Water purification [Wiki]</span>. Plain words with no <code>?</code> search too.</li>
+      <li><code>?1</code> <code>?2</code> <code>?3</code> reads the start of that result.</li>
+      <li><code>?more</code> sends the next part (or the next 3 results after a search).</li>
+      <li><code>?toc</code> lists the sections. <code>?go 4</code> jumps to section 4.</li>
+      <li><code>?help</code> sends this list over the radio.</li>
+    </ul>
+    <p class="muted small" style="margin-bottom:0">Set up the gateway node with the same private channel as your team (scan the channel QR code), and put 🤖 in its name so people can find it. Close the Meshtastic app or web flasher on this computer first, since only one program can use the USB port.</p>
+  </div>
+</main>
+
+<script src="common.js"></script>
+<script>
+Lantern.markNav('relay');
+let cfg = null;      // settings as last saved
+let formLoaded = false;
+let last = null;
+
+const $ = id => document.getElementById(id);
+const nodeLabel = n => (n.longName || n.shortName || '(no name yet)') + ' · ' + n.id;
+const ago = t => {
+  if (!t) return '';
+  const s = Math.max(0, Date.now() / 1000 - t);
+  if (s < 90) return 'just now';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  if (s < 172800) return Math.round(s / 3600) + ' hr ago';
+  return Math.round(s / 86400) + ' days ago';
+};
+
+async function save(changes, msg) {
+  const next = Object.assign({}, cfg, changes);
+  const r = await Lantern.api('/api/relay/config', next);
+  if (r.error) { $('saveMsg').textContent = r.error; return false; }
+  cfg = r.config;
+  if (msg) $('saveMsg').textContent = msg;
+  await refresh();
+  return true;
+}
+
+function fillForm(s) {
+  const c = s.config;
+  const sel = $('portSel');
+  const opts = [['auto', 'Find it automatically (USB)']]
+    .concat(s.ports.map(p => [p, 'USB · ' + p]))
+    .concat([['tcp', 'WiFi (enter address)']]);
+  if (c.port !== 'auto' && !c.port.startsWith('tcp:') && !s.ports.includes(c.port)) opts.splice(1, 0, [c.port, 'USB · ' + c.port + ' (not plugged in)']);
+  sel.innerHTML = opts.map(([v, l]) => `<option value="${Lantern.esc(v)}">${Lantern.esc(l)}</option>`).join('');
+  sel.value = c.port.startsWith('tcp:') ? 'tcp' : c.port;
+  $('tcpAddr').value = c.port.startsWith('tcp:') ? c.port.slice(4) : '';
+  $('tcpWrap').classList.toggle('hidden', sel.value !== 'tcp');
+  $('channel').value = c.channel;
+  $('chunkBytes').value = c.chunkBytes;
+  $('pause').value = c.pauseSeconds;
+  $('perReply').value = c.messagesPerReply;
+  formLoaded = true;
+}
+
+function render(s) {
+  last = s;
+  cfg = cfg || s.config;
+  if (!formLoaded) fillForm(s);
+  const tags = { connected: ['CONNECTED', 'tag ok'], connecting: ['CONNECTING', 'tag'], error: ['PROBLEM', 'tag'], off: ['OFF', 'tag grey'] };
+  const [tagText, tagClass] = tags[s.state] || tags.off;
+  $('stateTag').textContent = tagText;
+  $('stateTag').className = tagClass;
+  if (s.state === 'error') $('stateTag').style.background = '#F07A6E'; else $('stateTag').style.background = '';
+  $('stateText').textContent = {
+    connected: 'Relay is on and listening.',
+    connecting: 'Connecting to the node…',
+    error: s.detail,
+    off: 'Relay is off.',
+  }[s.state] || s.state;
+  $('toggleBtn').textContent = s.config.enabled ? 'Turn Relay off' : 'Turn Relay on';
+  $('toggleBtn').className = s.config.enabled ? 'btn ghost' : 'btn';
+  $('myNode').textContent = s.myNode ? nodeLabel(s.myNode) : '—';
+  $('port').textContent = s.port || '—';
+  $('search').innerHTML = s.searchReady
+    ? '<span style="color:var(--ok)">Ready</span>: searches everything on the drive'
+    : '<span style="color:var(--bad)">Not ready</span>: download Wikipedia or a guide first (<a href="/downloads.html">Downloads</a>)';
+
+  const banner = $('banner');
+  if (s.config.enabled && !s.config.allowedNodes.length) {
+    banner.textContent = 'No one is on the allowed list yet, so Relay won\'t answer anybody. Add your team\'s nodes below.';
+    banner.classList.remove('hidden');
+  } else banner.classList.add('hidden');
+
+  const byId = {};
+  s.nodes.concat(s.ignored).forEach(n => { byId[n.id] = n; });
+  $('allowed').innerHTML = s.config.allowedNodes.length ? s.config.allowedNodes.map(id => {
+    const n = byId[id];
+    return `<div class="card row">
+      <div class="grow"><div class="title">${Lantern.esc(n ? (n.longName || n.shortName || id) : id)}</div>
+      <div class="muted small mono">${Lantern.esc(id)}${n && n.lastHeard ? ' · heard ' + ago(n.lastHeard) : ''}</div></div>
+      <button class="btn danger" type="button" data-remove="${Lantern.esc(id)}">Remove</button></div>`;
+  }).join('') : '<p class="muted" style="margin:0">Nobody yet.</p>';
+
+  const allowed = new Set(s.config.allowedNodes);
+  const ignored = s.ignored.filter(n => !allowed.has(n.id));
+  $('ignoredWrap').classList.toggle('hidden', !ignored.length);
+  $('ignored').innerHTML = ignored.map(n => `<div class="card row">
+      <div class="grow"><div class="title">${Lantern.esc(n.longName || n.shortName || n.id)}</div>
+      <div class="muted small mono">${Lantern.esc(n.id)} · asked ${ago(n.lastHeard)}</div></div>
+      <button class="btn ghost" type="button" data-allow="${Lantern.esc(n.id)}">Allow</button></div>`).join('');
+
+  const heard = s.nodes.filter(n => !allowed.has(n.id));
+  const keep = $('heardSel').value;
+  $('heardSel').innerHTML = heard.length
+    ? '<option value="">Pick a node the gateway has heard…</option>' + heard.map(n => `<option value="${Lantern.esc(n.id)}">${Lantern.esc(nodeLabel(n))}</option>`).join('')
+    : '<option value="">No other nodes heard yet</option>';
+  if (heard.some(n => n.id === keep)) $('heardSel').value = keep;
+
+  $('log').innerHTML = s.log.length ? s.log.map(e => `<tr>
+      <td class="muted">${new Date(e.time * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</td>
+      <td>${Lantern.esc(e.name || e.node)}</td>
+      <td class="mono">${Lantern.esc(e.text)}</td>
+      <td class="muted">${Lantern.esc(e.info)}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="muted">No questions yet.</td></tr>';
+}
+
+async function refresh() {
+  try {
+    render(await Lantern.api('/api/relay/status'));
+  } catch (e) {
+    const b = $('banner');
+    b.className = 'banner err';
+    b.textContent = 'Lantern stopped responding. Make sure the Lantern window is still open, then refresh this page.';
+  }
+}
+
+function allow(id) {
+  const ids = new Set(cfg.allowedNodes);
+  ids.add(id);
+  return save({ allowedNodes: [...ids] });
+}
+
+$('toggleBtn').onclick = () => save({ enabled: !cfg.enabled });
+$('portSel').onchange = () => $('tcpWrap').classList.toggle('hidden', $('portSel').value !== 'tcp');
+$('addHeard').onclick = () => { const v = $('heardSel').value; if (v) allow(v); };
+$('addManual').onclick = async () => {
+  const v = $('manualId').value.trim();
+  if (!v) return;
+  const before = cfg.allowedNodes.length;
+  await allow(v);
+  if (cfg.allowedNodes.length === before) $('saveMsg').textContent = 'That doesn\'t look like a node ID. It should look like !a1b2c3d4.';
+  else $('manualId').value = '';
+};
+document.addEventListener('click', e => {
+  const rm = e.target.closest('[data-remove]');
+  if (rm) save({ allowedNodes: cfg.allowedNodes.filter(id => id !== rm.dataset.remove) });
+  const al = e.target.closest('[data-allow]');
+  if (al) allow(al.dataset.allow);
+});
+$('saveBtn').onclick = async () => {
+  let port = $('portSel').value;
+  if (port === 'tcp') {
+    const a = $('tcpAddr').value.trim();
+    if (!a) { $('saveMsg').textContent = 'Enter the node\'s WiFi address.'; return; }
+    port = 'tcp:' + a;
+  }
+  const ok = await save({
+    port, channel: +$('channel').value, chunkBytes: +$('chunkBytes').value,
+    pauseSeconds: +$('pause').value, messagesPerReply: +$('perReply').value,
+  }, 'Saved.');
+  if (ok) fillForm(last);
+};
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

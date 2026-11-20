@@ -22,14 +22,22 @@ USING IT (no internet needed)
 - Close the black Lantern window when you're done.
 - Use "Safely Remove Hardware" before unplugging, especially after downloads.
 
+LANTERN RELAY (ASK OVER MESHTASTIC)
+- Plug a Meshtastic node into this PC by USB, then open the Relay page.
+- Add the nodes that may ask, and press "Turn Relay on".
+- Your team sends the node a direct message like "?s water purification"
+  and gets short answers back from this drive. No internet needed.
+- Keep the Lantern window open, and close the Meshtastic app on this PC.
+
 WHAT'S IN THE "lantern" FOLDER
-  web\          the home page, map viewer and downloads page
+  web\          the home page, map viewer, Relay and downloads pages
   zim\          Wikipedia, books and guides (Kiwix .zim files)
   maps\         offline maps (.pmtiles files)
   kiwix\        the Kiwix reader (downloaded automatically)
   tools\        the map download tool (downloaded automatically)
   maps-assets\  map fonts and icons (downloaded automatically)
   temp\         unfinished downloads (safe to empty when nothing is downloading)
+  relay.json    Lantern Relay settings
   source\       Lantern's source code (Go), if you want to change it
 
 You can also copy .zim files from https://library.kiwix.org straight into

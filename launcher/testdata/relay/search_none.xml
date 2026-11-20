@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/"
+     xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Search: zzqx</title>
+    <link>/kiwix/search?pattern=zzqx&amp;books.name=wikipedia_en_test_maxi_2026-11&amp;books.name=zimgit-water_en_2026-11&amp;format=xml&amp;start=1&amp;pageLength=3</link>
+    <description>Search result for zzqx</description>
+    <opensearch:totalResults>0</opensearch:totalResults>
+    <opensearch:startIndex>1</opensearch:startIndex>
+    <opensearch:itemsPerPage>3</opensearch:itemsPerPage>
+    <atom:link rel="search" type="application/opensearchdescription+xml" href="/kiwix/search/searchdescription.xml"/>
+    <opensearch:Query role="request"
+      searchTerms="zzqx"
+      startIndex="1"
+      count="3"
+    />
+    
+  </channel>
+</rss>

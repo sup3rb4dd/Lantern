@@ -1,8 +1,9 @@
 // Lantern: a portable offline knowledge drive launcher.
 //
 // Lantern.exe sits in the root of the drive. It serves the home page,
-// runs kiwix-serve for ZIM content, serves offline maps, and manages
-// downloads, all from the drive itself. Nothing is installed on the PC.
+// runs kiwix-serve for ZIM content, serves offline maps, manages
+// downloads, and can answer questions over Meshtastic (Lantern Relay),
+// all from the drive itself. Nothing is installed on the PC.
 package main
 
 import (
@@ -16,7 +17,7 @@ import (
 	"time"
 )
 
-const version = "1.5.0"
+const version = "1.6.0"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {
@@ -101,12 +102,15 @@ func main() {
 
 	dl := newDownloader(p, kx)
 
+	rl := newRelay(p, kx)
+	rl.Start() // only connects if Lantern Relay is turned on in its settings
+
 	port := pickPort(8484)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	url := "http://" + addr + "/"
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newServer(p, kx, dl),
+		Handler:           newServer(p, kx, dl, rl),
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 
@@ -136,6 +140,7 @@ func main() {
 	<-sig
 	fmt.Println("Shutting down...")
 	dl.Shutdown()
+	rl.Stop()
 	kx.Stop()
 	srv.Close()
 }

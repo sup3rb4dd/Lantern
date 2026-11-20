@@ -20,6 +20,10 @@ nothing installed.
 - **Offline maps** using [Protomaps](https://protomaps.com) / OpenStreetMap data, shown with
   MapLibre, with search for place names on screen.
 - **Space checks.** A drive-space meter warns before you pick more than will fit.
+- **Lantern Relay.** Plug a Meshtastic node into the PC and your team can search the drive over the
+  mesh, from FieldMap's Ask Lantern screen or any Meshtastic app. Questions are direct messages like
+  `?s water purification`; answers come back in short messages. Only nodes you allow get answers.
+  See [RELAY.md](RELAY.md).
 
 ## Using it
 
@@ -34,7 +38,7 @@ all of Project Gutenberg 221 GB (subjects range from under 1 GB to about 40 GB),
 
 ## Building
 
-Requires [Go](https://go.dev/dl) 1.22 or newer. There are no other dependencies.
+Requires [Go](https://go.dev/dl) 1.22 or newer. There are no other dependencies. Run the tests with `cd launcher && go test .`
 
 ```sh
 ./build.sh        # Linux, macOS, or Git Bash: creates dist/Lantern and dist/Lantern-vX.Y.Z.zip
@@ -50,14 +54,15 @@ launcher/   Go source for Lantern.exe
   kiwix.go       starts and restarts kiwix-serve
   downloads.go   download queue, Kiwix catalog lookups, Kiwix reader and map installs
   fastdl.go      mirror speed test and parallel, resumable downloads
+  relay*.go      Lantern Relay: Meshtastic link, USB serial, Kiwix search, answers
   sys_*.go       Windows job object, hidden child windows, free space, browser launch
-web/        Home, Downloads and Maps pages, plus bundled map libraries (web/lib)
+web/        Home, Maps, Relay and Downloads pages, plus bundled map libraries (web/lib)
 package/    README.txt shipped on the drive
 ```
 
 On the drive, Lantern keeps everything under a `lantern` folder next to the exe:
 `web`, `zim` (Kiwix content), `maps` (`.pmtiles`), `kiwix` and `tools` (downloaded automatically),
-`maps-assets` (map fonts and icons), and `temp` (unfinished downloads).
+`maps-assets` (map fonts and icons), `temp` (unfinished downloads), and `relay.json` (Relay settings).
 
 ## Known limitations
 

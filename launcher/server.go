@@ -14,8 +14,28 @@ import (
 	"time"
 )
 
-func newServer(p Paths, kx *Kiwix, dl *Downloader) http.Handler {
+func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay) http.Handler {
 	mux := http.NewServeMux()
+
+	// Lantern Relay: Meshtastic gateway status and settings.
+	mux.HandleFunc("/api/relay/status", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, rl.Status())
+	})
+	mux.HandleFunc("/api/relay/config", func(w http.ResponseWriter, r *http.Request) {
+		if !postOnly(w, r) {
+			return
+		}
+		var c relayConfig
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&c); err != nil {
+			writeJSON(w, map[string]any{"error": "bad request"})
+			return
+		}
+		if err := rl.SetConfig(c); err != nil {
+			writeJSON(w, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true, "config": rl.Config()})
+	})
 
 	// Kiwix content (Wikipedia, books, guides) is proxied so everything lives on one address.
 	mux.HandleFunc("/kiwix/", func(w http.ResponseWriter, r *http.Request) {
