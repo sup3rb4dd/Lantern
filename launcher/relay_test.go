@@ -373,3 +373,26 @@ func TestRelaySendTest(t *testing.T) {
 	}
 	t.Fatalf("no transmit confirmation in log: %+v", r.Status().Log)
 }
+
+func TestRealWikipediaPage(t *testing.T) {
+	b, err := os.ReadFile("testdata/relay/real_portable_water_purification.html")
+	if err != nil {
+		t.Skip(err)
+	}
+	a := parseArticle("Portable water purification", "Wiki", string(b))
+	if len(a.Sections) < 3 || !strings.HasPrefix(a.Sections[0].Text, "Portable water purification devices") {
+		t.Fatalf("sections: %d, summary: %.200q", len(a.Sections), a.Sections[0].Text)
+	}
+	for _, c := range chunkText(a.Sections[0].Text, 188) {
+		if strings.HasSuffix(c, "e.g.") {
+			t.Errorf("split after an abbreviation: %q", c)
+		}
+	}
+	for _, s := range a.Sections {
+		for _, bad := range []string{"[1]", "Retrieved", "<", "RLCONF", "doi:"} {
+			if strings.Contains(s.Text, bad) {
+				t.Errorf("section %q contains %q", s.Title, bad)
+			}
+		}
+	}
+}

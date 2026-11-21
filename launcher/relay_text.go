@@ -29,10 +29,15 @@ var skipTags = map[string]bool{
 	"video": true, "img": false, "figcaption": true, "button": true, "form": true, "head": true,
 }
 
-// Class names (substring match) that mark boxes, footnotes and page furniture.
-var skipClasses = []string{"infobox", "navbox", "hatnote", "reference", "mw-ref", "thumb",
-	"metadata", "mw-editsection", "noprint", "sidebar", "ambox", "mbox", "toc", "gallery",
-	"mw-empty-elt", "shortdescription", "coordinates", "citation", "printfooter"}
+// Class names that mark boxes, footnotes and page furniture. A class on an
+// element matches if it equals one of these or starts with it plus "-"
+// (so "navbox" also catches "navbox-inner"). Whole names only: Wikipedia's
+// <html> tag carries classes like "vector-toc-not-available".
+var skipClasses = []string{"infobox", "navbox", "hatnote", "reference", "references", "mw-ref",
+	"mw-references-wrap", "reflist", "thumb", "metadata", "mw-editsection", "noprint", "sidebar",
+	"ambox", "mbox", "toc", "gallery", "mw-empty-elt", "shortdescription", "coordinates",
+	"printfooter", "catlinks", "mw-normal-catlinks", "mw-hidden-catlinks", "zim-footer",
+	"mw-cite-backlink", "navigation-not-searchable", "vertical-navbox", "side-box", "portalbox"}
 
 var voidTags = map[string]bool{"br": true, "img": true, "hr": true, "meta": true, "link": true,
 	"input": true, "wbr": true, "source": true, "area": true, "base": true, "col": true, "embed": true}
@@ -175,7 +180,8 @@ func htmlToText(s string) (string, []rawHeading) {
 			}
 			continue
 		}
-		if !closing && !voidTags[name] && !selfClose && (skipTags[name] || hasSkipClass(tag)) {
+		structural := name == "html" || name == "body" || name == "main"
+		if !closing && !voidTags[name] && !selfClose && !structural && (skipTags[name] || hasSkipClass(tag)) {
 			skipTag, skipDepth = name, 1
 			continue
 		}
@@ -217,10 +223,11 @@ func hasSkipClass(tag string) bool {
 	if m == nil {
 		return false
 	}
-	c := strings.ToLower(strings.Trim(m[1], `"'`))
-	for _, k := range skipClasses {
-		if strings.Contains(c, k) {
-			return true
+	for _, c := range strings.Fields(strings.ToLower(strings.Trim(m[1], `"'`))) {
+		for _, k := range skipClasses {
+			if c == k || strings.HasPrefix(c, k+"-") {
+				return true
+			}
 		}
 	}
 	return false
@@ -301,11 +308,35 @@ func chunkText(text string, max int) []string {
 func lastSentenceEnd(s string) int {
 	best := -1
 	for _, p := range []string{". ", "! ", "? ", "; "} {
-		if j := strings.LastIndex(s, p); j >= 0 && j+1 > best {
-			best = j + 1
+		for end := len(s); end > 0; {
+			j := strings.LastIndex(s[:end], p)
+			if j < 0 {
+				break
+			}
+			if p != ". " || !endsWithAbbrev(s[:j]) {
+				if j+1 > best {
+					best = j + 1
+				}
+				break
+			}
+			end = j
 		}
 	}
 	return best
+}
+
+// endsWithAbbrev reports whether the text before a period is an abbreviation
+// like "e.g" or "Dr", so the period doesn't end a sentence.
+func endsWithAbbrev(before string) bool {
+	w := before
+	if i := strings.LastIndexAny(before, " (\n"); i >= 0 {
+		w = before[i+1:]
+	}
+	switch strings.ToLower(w) {
+	case "e.g", "i.e", "etc", "vs", "approx", "dr", "mr", "mrs", "ms", "st", "no", "fig", "ca", "c", "jr", "sr", "u.s", "mt":
+		return true
+	}
+	return len(w) == 1 // an initial, like "J. Smith"
 }
 
 // truncBytes shortens s to at most n bytes, adding "…" when it cuts.
