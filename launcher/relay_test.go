@@ -396,3 +396,19 @@ func TestRealWikipediaPage(t *testing.T) {
 		}
 	}
 }
+
+func TestRealWikiMedPage(t *testing.T) {
+	b, err := os.ReadFile("testdata/relay/real_wikimed_mms.html")
+	if err != nil {
+		t.Skip(err)
+	}
+	a := parseArticle("Miracle Mineral Supplement", "Med", string(b))
+	if len(a.Sections) < 4 || !strings.HasPrefix(a.Sections[0].Text, "Miracle Mineral Supplement, often referred to") {
+		t.Fatalf("sections: %d, summary: %.200q", len(a.Sections), a.Sections[0].Text)
+	}
+	for _, s := range a.Sections {
+		if strings.Contains(s.Text, "[1]") || strings.Contains(s.Text, "Retrieved") {
+			t.Errorf("section %q has citation clutter", s.Title)
+		}
+	}
+}
