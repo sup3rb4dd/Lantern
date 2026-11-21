@@ -40,7 +40,7 @@ all of Project Gutenberg 221 GB (subjects range from under 1 GB to about 40 GB),
 
 ## Building
 
-Requires [Go](https://go.dev/dl) 1.22 or newer. There are no other dependencies. Run the tests with `cd launcher && go test .`
+Requires [Go](https://go.dev/dl) 1.24 or newer. There are no other dependencies. Run the tests with `cd launcher && go test .`
 
 ```sh
 ./build.sh        # Linux, macOS, or Git Bash: creates dist/Lantern and dist/Lantern-vX.Y.Z.zip
