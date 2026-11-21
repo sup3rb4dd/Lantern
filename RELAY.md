@@ -93,7 +93,7 @@ Scanned PDFs (pictures of pages) have no text and are skipped. The Relay page sh
 from. It is followed by the usual search-results message (header `🔎 ` plus the question), so
 `?1`, `?2`, `?more` work as after a search. In "just find the pages" mode there is no 🤖 message.
 ```
-🤖 Clean with running water and press to stop bleeding. Deep or gaping cuts need a doctor for stitches. (from 1)
+🤖 Clean with running water and press to stop bleeding. Deep or gaping cuts need closing: pull the edges together with strips. (from 1)
 🔎 I have a small cut, how do I close it
 1 Wound closure [Med]
 2 First Aid p.48 [Wikibooks]
@@ -118,7 +118,9 @@ AI is off or fails.
 How `?ask` works: the AI turns the question into library search words ("small cut, stitch it" →
 "wound closure", "laceration"), Lantern searches Wikipedia, WikiMed and the PDF books with them,
 the AI picks the most useful pages, and (in answer mode) writes up to 3 short sentences using only
-the top page. For medical questions it is told to say first when something needs a doctor.
+the top page. It assumes you're off-grid: it never tells you to call 911 or see a doctor
+(those lines are also filtered out if the model adds them anyway). For serious medical
+situations it says so plainly, puts the most important steps first and names warning signs.
 
 The Relay page has a **Try it here** box to ask from the PC without a radio. To use an AI server
 that's already running instead (LM Studio, Ollama's OpenAI API, another llama-server), start

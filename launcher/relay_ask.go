@@ -62,7 +62,8 @@ Only use result numbers from the list.`
 
 const askAnswerPrompt = `You are Lantern, an offline field reference read over a slow radio link.
 Answer using ONLY the source text given. Plain text, no markdown, at most 3 short sentences or numbered steps, under 300 characters.
-Medical or safety questions: if the source or common first-aid practice says this needs a doctor or professional (deep, gaping or long wounds, heavy bleeding that won't stop, face, hand or joint wounds, animal bites, signs of infection, chest pain, trouble breathing), say that first in a few words, then give the safe first-aid steps from the source.
+The person is off-grid: there is no phone service, no emergency services and no doctor to reach. Never tell them to call for help, call 911, go to a hospital or see a doctor. Give the most useful steps they can do themselves with what's at hand.
+Medical or safety questions: if the situation is serious (heavy bleeding, deep or gaping wounds, trouble breathing, severe allergic reaction, signs of infection), say so plainly in a few words, give the most important steps first, and name the warning signs that it is getting worse.
 If the source text doesn't answer the question, say "Not covered here" and say what the page does cover.
 Never make up steps, doses or facts that are not in the source.`
 
@@ -304,6 +305,26 @@ func (r *Relay) sourceText(ctx context.Context, h searchHit, terms []string, max
 	return truncBytes(out, max)
 }
 
+var (
+	sentenceRe    = regexp.MustCompile(`\s*(?:\d{1,2}[.)]\s*)?[^.!?]+[.!?]*`)
+	callForHelpRe = regexp.MustCompile(`(?i)\b(call|dial|phone|contact)\b[^.!?]*\b(911|999|112|emergency|ambulance|ems|doctor|help|poison control)\b|\b(seek|get)\b[^.!?]*\b(medical|professional|emergency)\b[^.!?]*\b(attention|help|care|treatment)\b|\b(go to|visit)\b[^.!?]*\b(hospital|emergency room|er|clinic|urgent care)\b|\b(see|consult)\b[^.!?]*\b(a|your)\b[^.!?]*\b(doctor|physician|healthcare|professional)\b`)
+)
+
+// dropCallForHelp removes "call 911 / see a doctor" sentences, which small
+// models add out of habit even when told there's no one to call.
+func dropCallForHelp(s string) string {
+	var keep []string
+	for _, sen := range sentenceRe.FindAllString(s, -1) {
+		if t := strings.TrimSpace(sen); t != "" && !callForHelpRe.MatchString(t) {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) == 0 {
+		return s
+	}
+	return strings.Join(keep, " ")
+}
+
 // tidyAnswer flattens markdown and keeps whole sentences within max bytes.
 func tidyAnswer(s string, max int) string {
 	s = strings.NewReplacer("**", "", "__", "", "`", "", "#", "").Replace(s)
@@ -315,6 +336,7 @@ func tidyAnswer(s string, max int) string {
 		lines[i] = l
 	}
 	s = strings.Join(strings.Fields(strings.Join(lines, " ")), " ")
+	s = dropCallForHelp(s)
 	if len(s) <= max {
 		return s
 	}

@@ -135,6 +135,17 @@ func TestTidyAnswer(t *testing.T) {
 	}
 }
 
+func TestDropCallForHelp(t *testing.T) {
+	in := "Press firmly on the wound for 10 minutes. Call 911 if bleeding doesn't stop. Seek immediate medical attention. Raise the limb above the heart. You should see a doctor for stitches. Go to the ER. Watch for redness and swelling."
+	want := "Press firmly on the wound for 10 minutes. Raise the limb above the heart. Watch for redness and swelling."
+	if got := dropCallForHelp(in); got != want {
+		t.Fatalf("got %q", got)
+	}
+	if got := tidyAnswer("1. Remove the stinger. 2. Call 911 now.", 300); got != "1. Remove the stinger." {
+		t.Fatalf("tidy: %q", got)
+	}
+}
+
 func TestPickAIModel(t *testing.T) {
 	if m := pickAIModel(16 << 30); m == nil || m.Repo != "Qwen/Qwen3-4B-GGUF" {
 		t.Fatalf("16 GB: %+v", m)
