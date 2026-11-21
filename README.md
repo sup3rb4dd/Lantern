@@ -30,7 +30,7 @@ nothing installed.
 ## Using it
 
 1. Format a drive as **exFAT** (FAT32 can't hold files over 4 GB).
-2. Build (below) or download a release, then copy the contents of the `Lantern` folder to the root of the drive.
+2. Download the latest zip from [Releases](https://github.com/sup3rb4dd/lantern/releases/latest) (or build it, below), then copy the contents of its `Lantern` folder to the root of the drive.
 3. Double-click `Lantern.exe`. The exe isn't code-signed, so Windows SmartScreen will warn:
    click **More info**, then **Run anyway**.
 4. Open **Downloads**, choose what you want, and leave the Lantern window open until it finishes.
