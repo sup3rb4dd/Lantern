@@ -27,17 +27,23 @@ import (
 
 const maxPdfsPerZim = 1500 // bigger collections (like all of Gutenberg) are skipped
 
+// pdfCacheVersion changes when what's saved changes, so older saved indexes
+// are redone once. 2: save raw page text (formatting is applied on load).
+const pdfCacheVersion = 2
+
 type pdfDoc struct {
-	Book    string   `json:"book"`  // ZIM name
-	Path    string   `json:"path"`  // entry path inside the ZIM
-	Title   string   `json:"title"` // document title
-	Pages   []string `json:"pages"`
-	Titles  []string `json:"titles,omitempty"` // first line of each page
+	Book    string   `json:"book"`          // ZIM name
+	Path    string   `json:"path"`          // entry path inside the ZIM
+	Title   string   `json:"title"`         // document title
+	Raw     []string `json:"raw,omitempty"` // page text as pdftotext gave it
+	Pages   []string `json:"-"`             // readable pages, made from Raw on load
+	Titles  []string `json:"-"`             // first line of each page
 	Scanned bool     `json:"scanned,omitempty"`
 	Error   string   `json:"error,omitempty"`
 }
 
 type pdfCache struct {
+	Version int       `json:"version"`
 	Zim     string    `json:"zim"`
 	Size    int64     `json:"size"`
 	ModTime int64     `json:"modTime"`
@@ -172,11 +178,12 @@ func (l *pdfLibrary) loadOrBuild(ctx context.Context, zim string) (*pdfCache, er
 	if err != nil {
 		return nil, err
 	}
-	if c, err := readPdfCache(l.cachePath(zim)); err == nil && c.Size == fi.Size() && c.ModTime == fi.ModTime().Unix() {
+	if c, err := readPdfCache(l.cachePath(zim)); err == nil && c.Size == fi.Size() && c.ModTime == fi.ModTime().Unix() && c.Version == pdfCacheVersion {
+		prepareDocs(c.Docs)
 		return c, nil
 	}
 	book := strings.TrimSuffix(filepath.Base(zim), ".zim")
-	c := &pdfCache{Zim: filepath.Base(zim), Size: fi.Size(), ModTime: fi.ModTime().Unix()}
+	c := &pdfCache{Version: pdfCacheVersion, Zim: filepath.Base(zim), Size: fi.Size(), ModTime: fi.ModTime().Unix()}
 	entries, tooMany, err := zimListByMime(zim, "application/pdf", maxPdfsPerZim+1)
 	if err != nil {
 		return nil, err
@@ -211,12 +218,12 @@ func (l *pdfLibrary) loadOrBuild(ctx context.Context, zim string) (*pdfCache, er
 				s.State, s.Done, s.Total, s.Current = "indexing", i, len(entries), e.Title
 			})
 			d := &pdfDoc{Book: book, Path: e.Path, Title: cleanInline(e.Title)}
-			if pages, titles, err := l.extract(ctx, base, tool, tmp, d); err != nil {
+			if raw, err := l.extract(ctx, base, tool, tmp, d); err != nil {
 				d.Error = err.Error()
-			} else if looksScanned(pages) {
+			} else if pages, titles := preparePdfPages(raw); looksScanned(pages) {
 				d.Scanned = true
 			} else {
-				d.Pages, d.Titles = pages, titles
+				d.Raw, d.Pages, d.Titles = raw, pages, titles
 			}
 			c.Docs = append(c.Docs, d)
 		}
@@ -227,7 +234,7 @@ func (l *pdfLibrary) loadOrBuild(ctx context.Context, zim string) (*pdfCache, er
 	return c, nil
 }
 
-func (l *pdfLibrary) extract(ctx context.Context, base, tool, tmp string, d *pdfDoc) ([]string, []string, error) {
+func (l *pdfLibrary) extract(ctx context.Context, base, tool, tmp string, d *pdfDoc) ([]string, error) {
 	var parts []string
 	for _, s := range strings.Split(d.Path, "/") {
 		parts = append(parts, url.PathEscape(s))
@@ -235,22 +242,22 @@ func (l *pdfLibrary) extract(ctx context.Context, base, tool, tmp string, d *pdf
 	req, _ := http.NewRequestWithContext(ctx, "GET", base+"/raw/"+url.PathEscape(d.Book)+"/content/"+strings.Join(parts, "/"), nil)
 	resp, err := l.client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("couldn't read it from the ZIM (%s)", resp.Status)
+		return nil, fmt.Errorf("couldn't read it from the ZIM (%s)", resp.Status)
 	}
 	f := filepath.Join(tmp, "doc.pdf")
 	w, err := os.Create(f)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	_, err = io.Copy(w, io.LimitReader(resp.Body, 500<<20))
 	w.Close()
 	defer os.Remove(f)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	return pdfPages(ctx, tool, f)
 }
@@ -323,6 +330,15 @@ func parseNautilusTitles(js string) map[string]string {
 func fileTitle(p string) string {
 	p = p[strings.LastIndex(p, "/")+1:]
 	return strings.TrimSuffix(strings.TrimSuffix(p, ".pdf"), ".PDF")
+}
+
+// prepareDocs rebuilds readable pages from the saved raw text.
+func prepareDocs(docs []*pdfDoc) {
+	for _, d := range docs {
+		if len(d.Raw) > 0 {
+			d.Pages, d.Titles = preparePdfPages(d.Raw)
+		}
+	}
 }
 
 func readPdfCache(p string) (*pdfCache, error) {

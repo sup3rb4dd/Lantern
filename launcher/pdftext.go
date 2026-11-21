@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 func pdftotextPath(p Paths) string {
@@ -35,11 +36,12 @@ func pdftotextPath(p Paths) string {
 
 var errNoPdfTool = errors.New("the PDF reader isn't installed")
 
-// pdfPages extracts the text of each page of a PDF file, and a short title
-// for each page (its first line of text).
-func pdfPages(ctx context.Context, tool, pdfFile string) ([]string, []string, error) {
+// pdfPages extracts the raw text of each page of a PDF file. It is saved as
+// is; preparePdfPages turns it into readable text when the index loads, so
+// formatting fixes never need the PDFs read again.
+func pdfPages(ctx context.Context, tool, pdfFile string) ([]string, error) {
 	if tool == "" {
-		return nil, nil, errNoPdfTool
+		return nil, errNoPdfTool
 	}
 	out := pdfFile + ".txt"
 	defer os.Remove(out)
@@ -52,29 +54,41 @@ func pdfPages(ctx context.Context, tool, pdfFile string) ([]string, []string, er
 		if msg == "" {
 			msg = err.Error()
 		}
-		return nil, nil, errors.New("pdftotext: " + msg)
+		return nil, errors.New("pdftotext: " + msg)
 	}
 	b, err := os.ReadFile(out)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	raw := strings.Split(string(b), "\f")
 	if len(raw) > 0 && strings.TrimSpace(raw[len(raw)-1]) == "" {
 		raw = raw[:len(raw)-1] // text ends with a page break
 	}
+	for i := range raw {
+		raw[i] = strings.ReplaceAll(raw[i], "\r", "")
+	}
+	return raw, nil
+}
+
+// preparePdfPages turns raw page text into readable pages, plus a short title
+// for each page (its first line of text).
+func preparePdfPages(raw []string) (pages, titles []string) {
 	raw = dropRepeatedLines(raw)
-	pages := make([]string, len(raw))
-	titles := make([]string, len(raw))
+	pages = make([]string, len(raw))
+	titles = make([]string, len(raw))
 	for i, r := range raw {
 		pages[i] = tidyPdfText(r)
 		titles[i] = pageTitle(r)
 	}
-	return pages, titles, nil
+	return pages, titles
 }
 
 var (
-	reDigits      = regexp.MustCompile(`[0-9]+`)
-	rePageOf      = regexp.MustCompile(`(?i)^(page\s*)?#(\s*(of|/)\s*#)?$`)
+	reDigits = regexp.MustCompile(`[0-9]+`)
+	rePageOf = regexp.MustCompile(`(?i)^(page\s*)?#(\s*(of|/)\s*#)?$`)
+	// a list item: bullet, "1." / "2)" or "a." / "b)" at the start of a line
+	reListItem    = regexp.MustCompile(`^([•●▪■◦‣∙·○◆➢➤✓✔*–-]|\(?[0-9]{1,2}[.)]|\(?[a-zA-Z][.)])\s`)
+	reBulletOnly  = regexp.MustCompile(`^[•●▪■◦‣∙·○◆➢➤✓✔*–-]$`)
 	reHyphenBreak = regexp.MustCompile(`(\p{L})-\n(\p{Ll})`)
 	reBlankLines  = regexp.MustCompile(`\n[ \t]*\n+`)
 )
@@ -119,24 +133,61 @@ func tidyPdfText(s string) string {
 	s = reHyphenBreak.ReplaceAllString(s, "$1$2") // "disin-\nfect" -> "disinfect"
 	paras := reBlankLines.Split(s, -1)
 	var out []string
+	var b strings.Builder
+	flush := func() {
+		if t := strings.TrimSpace(reSpace.ReplaceAllString(b.String(), " ")); t != "" {
+			out = append(out, t)
+		}
+		b.Reset()
+	}
 	for _, p := range paras {
-		lines := strings.Split(p, "\n")
-		var b strings.Builder
-		for _, l := range lines {
+		bullet := false // a bullet on its own line: its text is on the next line
+		inItem := false // the current line is a list item
+		for _, l := range strings.Split(p, "\n") {
 			l = strings.TrimSpace(l)
 			if l == "" {
 				continue
+			}
+			switch {
+			case reBulletOnly.MatchString(l):
+				flush()
+				b.WriteString("• ")
+				bullet, inItem = true, true
+				continue
+			case bullet:
+				b.WriteString(l)
+				bullet = false
+				continue
+			case reListItem.MatchString(l):
+				flush() // each list item starts its own line
+				inItem = true
+				if r, size := utf8.DecodeRuneInString(l); !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '(' {
+					l = "• " + strings.TrimSpace(l[size:]) // one bullet style everywhere
+				}
+				b.WriteString(l)
+				continue
+			case inItem && endsSentence(b.String()) && startsUpper(l):
+				flush() // the list is over: a new paragraph begins
+				inItem = false
 			}
 			if b.Len() > 0 {
 				b.WriteByte(' ')
 			}
 			b.WriteString(l)
 		}
-		if t := strings.TrimSpace(reSpace.ReplaceAllString(b.String(), " ")); t != "" {
-			out = append(out, t)
-		}
+		flush()
 	}
 	return strings.Join(out, "\n")
+}
+
+func endsSentence(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.HasSuffix(s, ".") || strings.HasSuffix(s, "!") || strings.HasSuffix(s, "?") || strings.HasSuffix(s, ":")
+}
+
+func startsUpper(s string) bool {
+	r, _ := utf8.DecodeRuneInString(s)
+	return unicode.IsUpper(r)
 }
 
 // pageTitle is a short label for a page: its first line of real text

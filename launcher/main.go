@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.7.0"
+const version = "1.7.1"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {

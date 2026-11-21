@@ -495,3 +495,11 @@ func TestRelayAnswersFromPdf(t *testing.T) {
 		t.Fatalf("PDF ?go 4: %q", got)
 	}
 }
+
+func TestPdfListFormatting(t *testing.T) {
+	raw := "Don't do this!\n• Apply ice or iced water except\non small first degree burns.\n•\nRemove adhered clothing.\n1. Brush it off the skin using paper,\nor with a gloved hand.\n2) Flush with running water.\n- less than 2 percent\noxygen.\nPlain text that wraps\nonto a second line."
+	want := "Don't do this!\n• Apply ice or iced water except on small first degree burns.\n• Remove adhered clothing.\n1. Brush it off the skin using paper, or with a gloved hand.\n2) Flush with running water.\n• less than 2 percent oxygen.\nPlain text that wraps onto a second line."
+	if got := tidyPdfText(raw); got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
