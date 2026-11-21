@@ -52,6 +52,15 @@
       <dt>Connected on</dt><dd id="port">—</dd>
       <dt>Search</dt><dd id="search">—</dd>
     </dl>
+    <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)">
+      <div class="grow small muted">Radio check: the gateway broadcasts a short test message. If a nearby node repeats it, the result shows in Activity below, and it appears in chat on that channel.</div>
+      <label for="testCh" class="hidden">Channel for the test</label>
+      <select id="testCh" style="min-height:44px">
+        <option value="0">Channel 0</option><option value="1">Channel 1</option><option value="2">Channel 2</option><option value="3">Channel 3</option>
+      </select>
+      <button class="btn ghost" id="testBtn" type="button">Send test message</button>
+    </div>
+    <div class="small" id="testMsg" style="margin-top:8px"></div>
   </div>
 
   <h2>Who can ask</h2>
@@ -173,6 +182,8 @@ function render(s) {
   last = s;
   cfg = cfg || s.config;
   if (!formLoaded) fillForm(s);
+  if (!testChSet) { $('testCh').value = String(s.config.channel); testChSet = true; }
+  $('testBtn').disabled = s.state !== 'connected';
   const tags = { connected: ['CONNECTED', 'tag ok'], connecting: ['CONNECTING', 'tag'], error: ['PROBLEM', 'tag'], off: ['OFF', 'tag grey'] };
   const [tagText, tagClass] = tags[s.state] || tags.off;
   $('stateTag').textContent = tagText;
@@ -247,6 +258,12 @@ function allow(id) {
   return save({ allowedNodes: [...ids] });
 }
 
+$('testBtn').onclick = async () => {
+  const r = await Lantern.api('/api/relay/test', { channel: +$('testCh').value });
+  $('testMsg').textContent = r.error ? r.error : 'Sent. Watch for it on your phone, and check Activity below within a minute.';
+  refresh();
+};
+let testChSet = false;
 $('toggleBtn').onclick = () => save({ enabled: !cfg.enabled });
 $('portSel').onchange = () => $('tcpWrap').classList.toggle('hidden', $('portSel').value !== 'tcp');
 $('addHeard').onclick = () => { const v = $('heardSel').value; if (v) allow(v); };

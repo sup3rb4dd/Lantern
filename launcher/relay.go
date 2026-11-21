@@ -737,6 +737,50 @@ func packLines(lines []string, max int) []string {
 	return out
 }
 
+// SendTest broadcasts a short message on a channel, to check that the gateway
+// node can transmit. If any nearby node repeats it, the node reports that back
+// (an implicit acknowledgement), and the result is written to the activity log.
+func (r *Relay) SendTest(channel int) error {
+	r.mu.Lock()
+	c, my := r.conn, r.myNode
+	r.mu.Unlock()
+	if c == nil || r.Status().State != "connected" {
+		return errors.New("Relay isn't connected to the node")
+	}
+	channel = clampInt(channel, 0, 7)
+	id := randomPacketID()
+	ack := make(chan uint32, 1)
+	r.mu.Lock()
+	r.acks[id] = ack
+	r.mu.Unlock()
+	text := "Lantern Relay test " + time.Now().Format("15:04:05")
+	if err := c.send(toRadioText(meshBroadcast, uint32(channel), text, id)); err != nil {
+		r.mu.Lock()
+		delete(r.acks, id)
+		r.mu.Unlock()
+		return err
+	}
+	r.addLog(my, text, fmt.Sprintf("test sent on channel %d, waiting up to 60 s for a nearby node to repeat it", channel))
+	go func() {
+		defer func() {
+			r.mu.Lock()
+			delete(r.acks, id)
+			r.mu.Unlock()
+		}()
+		select {
+		case code := <-ack:
+			if code == 0 {
+				r.addLog(my, text, "test: a nearby node repeated it, so the gateway can transmit")
+			} else {
+				r.addLog(my, text, fmt.Sprintf("test: no node repeated it (mesh error %d); the gateway may not be transmitting", code))
+			}
+		case <-time.After(60 * time.Second):
+			r.addLog(my, text, "test: no node repeated it within 60 s; the gateway may not be transmitting")
+		}
+	}()
+	return nil
+}
+
 // sender sends queued replies one at a time: it waits for the mesh to
 // acknowledge each message (or 30 seconds), then pauses before the next.
 func (r *Relay) sender() {

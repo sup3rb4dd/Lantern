@@ -21,6 +21,18 @@ func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay) http.Handler {
 	mux.HandleFunc("/api/relay/status", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, rl.Status())
 	})
+	mux.HandleFunc("/api/relay/test", func(w http.ResponseWriter, r *http.Request) {
+		if !postOnly(w, r) {
+			return
+		}
+		var body struct{ Channel int }
+		json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<12)).Decode(&body)
+		if err := rl.SendTest(body.Channel); err != nil {
+			writeJSON(w, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true})
+	})
 	mux.HandleFunc("/api/relay/config", func(w http.ResponseWriter, r *http.Request) {
 		if !postOnly(w, r) {
 			return

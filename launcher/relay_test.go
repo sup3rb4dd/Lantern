@@ -353,3 +353,23 @@ func TestNodeAddressCleanup(t *testing.T) {
 		}
 	}
 }
+
+func TestRelaySendTest(t *testing.T) {
+	ks := fakeKiwix(t)
+	defer ks.Close()
+	r, node := startRelay(t, ks.URL+"/kiwix", []string{wikiBook})
+	if err := r.SendTest(1); err != nil {
+		t.Fatal(err)
+	}
+	m := <-node.sent
+	if m.to != meshBroadcast || !strings.HasPrefix(m.text, "Lantern Relay test ") {
+		t.Fatalf("test message: %+v", m)
+	}
+	for i := 0; i < 50; i++ {
+		if l := r.Status().Log; len(l) > 0 && strings.Contains(l[0].Info, "can transmit") {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("no transmit confirmation in log: %+v", r.Status().Log)
+}
