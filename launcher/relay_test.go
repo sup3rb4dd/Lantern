@@ -503,3 +503,12 @@ func TestPdfListFormatting(t *testing.T) {
 		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+func TestPdfInlineBullets(t *testing.T) {
+	// Wikibooks' printable PDFs, as pdftotext lays them out
+	raw := "Chemical burns\nDon't do this!\n• Apply ice or iced water except on small first degree burns. •\nTouch a burn with anything other than a sterile covering.\n• Remove adhered clothing. • Try to clean a severe burn. •\nBreak blisters.\nIf there is a dry chemical, brush it off."
+	want := "Chemical burns Don't do this!\n• Apply ice or iced water except on small first degree burns.\n• Touch a burn with anything other than a sterile covering.\n• Remove adhered clothing.\n• Try to clean a severe burn.\n• Break blisters.\nIf there is a dry chemical, brush it off."
+	if got := tidyPdfText(raw); got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

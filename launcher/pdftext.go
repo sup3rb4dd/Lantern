@@ -87,10 +87,12 @@ var (
 	reDigits = regexp.MustCompile(`[0-9]+`)
 	rePageOf = regexp.MustCompile(`(?i)^(page\s*)?#(\s*(of|/)\s*#)?$`)
 	// a list item: bullet, "1." / "2)" or "a." / "b)" at the start of a line
-	reListItem    = regexp.MustCompile(`^([•●▪■◦‣∙·○◆➢➤✓✔*–-]|\(?[0-9]{1,2}[.)]|\(?[a-zA-Z][.)])\s`)
-	reBulletOnly  = regexp.MustCompile(`^[•●▪■◦‣∙·○◆➢➤✓✔*–-]$`)
-	reHyphenBreak = regexp.MustCompile(`(\p{L})-\n(\p{Ll})`)
-	reBlankLines  = regexp.MustCompile(`\n[ \t]*\n+`)
+	reListItem       = regexp.MustCompile(`^([•●▪■◦‣∙·○◆➢➤✓✔*–-]|\(?[0-9]{1,2}[.)]|\(?[a-zA-Z][.)])\s`)
+	reInlineBullet   = regexp.MustCompile(`[ \t]+[•●▪■◦‣][ \t]+`)
+	reTrailingBullet = regexp.MustCompile(`(?m)[ \t]+[•●▪■◦‣]$`)
+	reBulletOnly     = regexp.MustCompile(`^[•●▪■◦‣∙·○◆➢➤✓✔*–-]$`)
+	reHyphenBreak    = regexp.MustCompile(`(\p{L})-\n(\p{Ll})`)
+	reBlankLines     = regexp.MustCompile(`\n[ \t]*\n+`)
 )
 
 // dropRepeatedLines removes running headers and footers: lines (ignoring
@@ -131,6 +133,10 @@ func tidyPdfText(s string) string {
 	s = strings.ReplaceAll(s, "\r", "")
 	s = strings.ReplaceAll(s, "\uFFFD", " ")      // characters the PDF's fonts couldn't map
 	s = reHyphenBreak.ReplaceAllString(s, "$1$2") // "disin-\nfect" -> "disinfect"
+	// Some PDFs (like Wikibooks' printable books) put a bullet at the end of the
+	// previous line or in the middle of a line: give each bullet its own line.
+	s = reInlineBullet.ReplaceAllString(s, "\n• ")
+	s = reTrailingBullet.ReplaceAllString(s, "\n•")
 	paras := reBlankLines.Split(s, -1)
 	var out []string
 	var b strings.Builder

@@ -1,5 +1,8 @@
 **Download the `Lantern-v….zip` file** below, unzip it, and copy everything inside its `Lantern` folder to the root of a USB drive (or any folder). Run `Lantern.exe` and use the **Downloads** page to add Wikipedia, books and maps. Windows 64-bit. No install needed.
 
+### New in 1.7.2
+- Bullets in Wikibooks' printable PDFs (which put each bullet at the end of the line before) now get their own lines too. No re-read needed.
+
 ### New in 1.7.1
 - Lists in PDF books (bullets, numbered steps) keep their line breaks instead of running together. The first time 1.7.1 starts, it reads your PDF books once more to pick this up; after that, formatting fixes never need a re-read.
 
