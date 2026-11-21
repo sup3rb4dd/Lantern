@@ -1,0 +1,44 @@
+# Builds Lantern on every push to main and publishes it as a GitHub release
+# named after the version in launcher/main.go (v1.7.0, ...). A version that
+# already has a release gets its zip replaced; bump the version for a new one.
+# Release notes come from RELEASE_NOTES.md.
+name: Build and release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Test
+        run: |
+          sudo apt-get install -y -q poppler-utils >/dev/null
+          cd launcher && go test -count=1 .
+
+      - name: Build
+        id: build
+        run: |
+          sudo apt-get install -y -q zip >/dev/null
+          ./build.sh
+          echo "version=$(grep -oE 'version = "[^"]+"' launcher/main.go | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.build.outputs.version }}
+          name: Lantern ${{ steps.build.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          files: dist/Lantern-v${{ steps.build.outputs.version }}.zip
+          make_latest: true
