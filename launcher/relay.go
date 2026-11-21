@@ -41,8 +41,12 @@ func defaultRelayConfig() relayConfig {
 }
 
 func (c *relayConfig) normalize() {
+	c.Port = strings.TrimSpace(c.Port)
 	if c.Port == "" {
 		c.Port = "auto"
+	}
+	if strings.HasPrefix(c.Port, "tcp:") {
+		c.Port = "tcp:" + cleanNodeAddress(strings.TrimPrefix(c.Port, "tcp:"))
 	}
 	c.ChunkBytes = clampInt(c.ChunkBytes, 80, 228)
 	if c.PauseSeconds < 1 {
@@ -63,6 +67,20 @@ func (c *relayConfig) normalize() {
 		}
 	}
 	c.AllowedNodes = out
+}
+
+// cleanNodeAddress turns what people paste, like "http://192.168.1.13/", into "192.168.1.13".
+func cleanNodeAddress(a string) string {
+	a = strings.TrimSpace(a)
+	for _, p := range []string{"tcp://", "http://", "https://", "tcp:"} {
+		if len(a) >= len(p) && strings.EqualFold(a[:len(p)], p) {
+			a = a[len(p):]
+		}
+	}
+	if i := strings.IndexAny(a, "/?#"); i >= 0 {
+		a = a[:i]
+	}
+	return strings.TrimSpace(a)
 }
 
 // normalizeNodeID accepts "!a1b2c3d4", "a1b2c3d4" or a decimal node number.

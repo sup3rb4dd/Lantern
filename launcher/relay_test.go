@@ -342,3 +342,14 @@ func TestSearchFallsBackToEachBook(t *testing.T) {
 		t.Fatalf("fetch: %v %+v", err, a)
 	}
 }
+
+func TestNodeAddressCleanup(t *testing.T) {
+	for in, want := range map[string]string{"tcp:http://192.168.1.13/": "tcp:192.168.1.13", "tcp: 192.168.1.13 ": "tcp:192.168.1.13",
+		"tcp:HTTPS://node.local:4403/x": "tcp:node.local:4403", "tcp:192.168.1.13": "tcp:192.168.1.13", "COM5": "COM5"} {
+		c := relayConfig{Port: in}
+		c.normalize()
+		if c.Port != want {
+			t.Errorf("%q -> %q, want %q", in, c.Port, want)
+		}
+	}
+}
