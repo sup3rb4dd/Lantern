@@ -27,6 +27,27 @@ nothing installed.
   once with a small PDF reader it downloads for you and searches inside them too.
   See [RELAY.md](RELAY.md).
 
+## Works with FieldMap
+
+Lantern pairs with [FieldMap](https://github.com/sup3rb4dd/fieldmap), a free, simple ATAK-style
+team map for Android that runs over Meshtastic and GMRS radios. Together they turn Lantern into a
+reference desk your team can reach over the mesh, with no cell service or internet anywhere:
+
+```
+FieldMap (phone) ──Bluetooth── your Meshtastic node ~~~ mesh ~~~ gateway node 🤖 ──USB/WiFi── PC running Lantern
+```
+
+1. Leave Lantern running at home or base camp with a Meshtastic node plugged in (or on WiFi), and
+   turn on **Relay**. Add your team's nodes to its allowed list.
+2. In the field, open FieldMap's **☰ ▸ Ask Lantern**, pick the gateway node once, and type a question,
+   like `bleach drops per gallon`.
+3. Lantern searches everything on the drive (Wikipedia, WikiMed, and inside its PDF guides) and
+   radios back the top matches. Tap one to read it a few messages at a time.
+4. Every answer is saved on the phone, so it can be read again later with no signal at all.
+
+Setup details and the message format are in [RELAY.md](RELAY.md). Any Meshtastic app can ask too,
+by sending the gateway node a direct message such as `?s water purification`.
+
 ## Using it
 
 1. Format a drive as **exFAT** (FAT32 can't hold files over 4 GB).
