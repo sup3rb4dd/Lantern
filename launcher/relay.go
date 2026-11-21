@@ -34,10 +34,11 @@ type relayConfig struct {
 	ChunkBytes       int      `json:"chunkBytes"`       // most bytes in one message
 	PauseSeconds     float64  `json:"pauseSeconds"`     // wait between messages
 	MessagesPerReply int      `json:"messagesPerReply"` // messages sent before waiting for ?more
+	AI               string   `json:"ai"`               // off | sources | answer (used by ?ask once the AI is set up)
 }
 
 func defaultRelayConfig() relayConfig {
-	return relayConfig{Port: "auto", ChunkBytes: 200, PauseSeconds: 5, MessagesPerReply: 3, AllowedNodes: []string{}}
+	return relayConfig{Port: "auto", ChunkBytes: 200, PauseSeconds: 5, MessagesPerReply: 3, AllowedNodes: []string{}, AI: aiModeAnswer}
 }
 
 func (c *relayConfig) normalize() {
@@ -57,6 +58,9 @@ func (c *relayConfig) normalize() {
 	}
 	c.MessagesPerReply = clampInt(c.MessagesPerReply, 1, 10)
 	c.Channel = clampInt(c.Channel, 0, 7)
+	if c.AI != aiModeOff && c.AI != aiModeSources {
+		c.AI = aiModeAnswer
+	}
 	seen := map[string]bool{}
 	out := []string{}
 	for _, id := range c.AllowedNodes {
@@ -133,7 +137,9 @@ type relaySession struct {
 	sec     int
 	chunks  []string // messages for the current section or table of contents
 	pos     int
-	gen     uint64 // bumped on every new command, so stale queued replies are dropped
+	gen     uint64       // bumped on every new command, so stale queued replies are dropped
+	pool    []searchHit  // ?ask: every result, best first (?more pages through these)
+	notify  func(string) // sends a message right away (while the AI is busy)
 }
 
 type relayOut struct {
@@ -151,6 +157,7 @@ type Relay struct {
 	p        Paths
 	ks       *kiwixSearcher
 	pdf      *pdfLibrary // PDF books; nil in some tests
+	ai       *aiEngine   // local AI for ?ask; nil if not used
 	cfgPath  string
 	mu       sync.Mutex
 	cfg      relayConfig
@@ -543,6 +550,7 @@ func (r *Relay) answer(from uint32, text string) {
 	s.gen++
 	gen := s.gen
 	cfg := r.cfg
+	s.notify = func(m string) { r.out <- relayOut{to: from, text: m, gen: gen} }
 	r.mu.Unlock()
 
 	msgs, info := r.runCommand(s, cfg, text)
@@ -552,9 +560,29 @@ func (r *Relay) answer(from uint32, text string) {
 	}
 }
 
+// Try runs a command for the Relay page's "Try a question" box. It keeps its
+// own session, so ?1 and ?more work there too.
+func (r *Relay) Try(text string) ([]string, string) {
+	r.mu.Lock()
+	cfg := r.cfg
+	s := r.sessions[0]
+	if s == nil {
+		s = &relaySession{}
+		r.sessions[0] = s
+	}
+	var early []string
+	s.notify = func(m string) { early = append(early, m) }
+	r.mu.Unlock()
+	msgs, info := r.runCommand(s, cfg, text)
+	if msgs == nil {
+		msgs = []string{}
+	}
+	return append(early, msgs...), info
+}
+
 func notice(s string) []string { return []string{"Lantern: " + s} }
 
-const relayHelp = "Lantern Relay: ?s words = search. ?1 ?2 ?3 = read a result. ?more = keep going. ?toc = sections. ?go N = jump to section N."
+const relayHelp = "Lantern Relay: ?ask question = find the right pages. ?s words = search. ?1 ?2 ?3 = read a result. ?more = keep going. ?toc = sections. ?go N = section N."
 
 func (r *Relay) runCommand(s *relaySession, cfg relayConfig, text string) ([]string, string) {
 	text = strings.TrimSpace(text)
@@ -562,7 +590,11 @@ func (r *Relay) runCommand(s *relaySession, cfg relayConfig, text string) ([]str
 		return nil, "empty"
 	}
 	if !strings.HasPrefix(text, "?") {
-		text = "?s " + text // plain words are a search
+		if r.aiReady(cfg) && len(strings.Fields(text)) >= 3 {
+			text = "?ask " + text // a plain question goes to the AI librarian
+		} else {
+			text = "?s " + text // plain words are a search
+		}
 	}
 	cmd, arg, _ := strings.Cut(text, " ")
 	cmd = strings.ToLower(cmd)
@@ -577,8 +609,14 @@ func (r *Relay) runCommand(s *relaySession, cfg relayConfig, text string) ([]str
 		if arg == "" {
 			return notice("send ?s and some words, like ?s water purification"), "empty search"
 		}
-		s.query, s.results, s.total = arg, nil, 0
+		s.query, s.results, s.total, s.pool = arg, nil, 0, nil
 		return r.searchPage(ctx, s, cfg)
+	case "?ask", "?a", "?q":
+		if arg == "" {
+			return notice("send ?ask and a question, like ?ask how do I clean a cut"), "empty ask"
+		}
+		cancel()
+		return r.ask(s, cfg, arg)
 	case "?more", "?m", "?next":
 		switch s.mode {
 		case modeSearch:
@@ -646,7 +684,15 @@ func (r *Relay) searchPage(ctx context.Context, s *relaySession, cfg relayConfig
 	if start > 0 && start >= s.total {
 		return notice("no more results for \"" + truncBytes(s.query, 40) + "\"."), "no more results"
 	}
-	hits, total, err := r.search(ctx, s.query, start, perPage)
+	var hits []searchHit
+	var total int
+	var err error
+	if s.pool != nil {
+		total = len(s.pool)
+		hits = s.pool[start:min(start+perPage, len(s.pool))]
+	} else {
+		hits, total, err = r.search(ctx, s.query, start, perPage)
+	}
 	if err != nil {
 		return notice("search isn't working (" + err.Error() + ")"), "search failed: " + err.Error()
 	}
@@ -880,6 +926,7 @@ type relayStatus struct {
 	Log     []relayLogEntry `json:"log"`
 	Search  bool            `json:"searchReady"`
 	PDF     *pdfStatus      `json:"pdf,omitempty"`
+	AI      *aiStatus       `json:"ai,omitempty"`
 }
 
 func (r *Relay) Status() relayStatus {
@@ -893,9 +940,14 @@ func (r *Relay) Status() relayStatus {
 			searchReady = true
 		}
 	}
+	var as *aiStatus
+	if r.ai != nil {
+		a := r.ai.Status()
+		as = &a
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	st := relayStatus{State: r.state, Detail: r.detail, Port: r.portName, Config: r.cfg, Ports: ports, Search: searchReady, PDF: ps}
+	st := relayStatus{State: r.state, Detail: r.detail, Port: r.portName, Config: r.cfg, Ports: ports, Search: searchReady, PDF: ps, AI: as}
 	if st.Ports == nil {
 		st.Ports = []string{}
 	}

@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.7.2"
+const version = "1.8.0"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {
@@ -114,7 +114,8 @@ func main() {
 			rl.pdf.Kick()
 		}
 	}
-	rl.Start() // only connects if Lantern Relay is turned on in its settings
+	rl.ai = newAI(p) // local AI for ?ask; starts only when a question comes in
+	rl.Start()       // only connects if Lantern Relay is turned on in its settings
 
 	port := pickPort(8484)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -152,6 +153,7 @@ func main() {
 	fmt.Println("Shutting down...")
 	dl.Shutdown()
 	rl.Stop()
+	rl.ai.Stop()
 	kx.Stop()
 	srv.Close()
 }

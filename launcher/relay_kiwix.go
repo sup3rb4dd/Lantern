@@ -109,16 +109,25 @@ func (k *kiwixSearcher) searchBooks(ctx context.Context, base string, books []st
 		return nil, 0, err
 	}
 	var hits []searchHit
+	total := 0
+	fmt.Sscan(strings.TrimSpace(rss.Total), &total)
 	for _, it := range rss.Items {
 		book, path, ok := splitContentLink(it.Link)
 		if !ok {
 			continue
 		}
+		// A book collection's start page is a script-driven list with nothing
+		// to read over the radio; its PDFs are searched separately.
+		if strings.HasPrefix(book, "zimgit") && path == "home" {
+			total--
+			continue
+		}
 		hits = append(hits, searchHit{Title: cleanInline(it.Title), Book: book, Path: path,
 			Source: sourceLabel(book, it.Book), Snip: cleanInline(stripTags(it.Desc.Inner))})
 	}
-	total := 0
-	fmt.Sscan(strings.TrimSpace(rss.Total), &total)
+	if total < len(hits) {
+		total = len(hits)
+	}
 	if start >= len(hits) {
 		return nil, total, nil
 	}

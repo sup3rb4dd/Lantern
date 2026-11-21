@@ -38,8 +38,9 @@ bot traffic never lands in team chat.
 
 | Send | Gets back |
 |---|---|
+| `?ask I have a small cut, how do I close it` | With the AI helper: a short answer from the best page, then the best pages. Without it: a search on the question's key words |
 | `?s water purification` | Top 3 matches from everything on the drive |
-| `water purification` | Same as `?s` (plain words are a search) |
+| `water purification` | Same as `?s` (plain words are a search). With the AI helper on, a plain question of 3 or more words goes to `?ask` |
 | `?1` `?2` `?3` (or `?4`… after `?more`) | The start of that result |
 | `?more` | The next part, continuing into the next section; after a search, the next 3 results |
 | `?toc` | The article's sections |
@@ -88,7 +89,40 @@ Scanned PDFs (pictures of pages) have no text and are skipped. The Relay page sh
 2 Boiling
 ```
 
+**AI answers.** `🤖 ` then a short answer, ending `(from 1)`, which names the result it came
+from. It is followed by the usual search-results message (header `🔎 ` plus the question), so
+`?1`, `?2`, `?more` work as after a search. In "just find the pages" mode there is no 🤖 message.
+```
+🤖 Clean with running water and press to stop bleeding. Deep or gaping cuts need a doctor for stitches. (from 1)
+🔎 I have a small cut, how do I close it
+1 Wound closure [Med]
+2 First Aid p.48 [Wikibooks]
+3 Laceration [Med]
+```
+
 **Notices.** Start with `Lantern: `, for example `Lantern: search first: ?s words`.
+
+## AI helper
+
+Optional. The Relay page's **Set up AI helper** button downloads two things into the Lantern
+folder: llama.cpp's `llama-server` (Windows Vulkan build, which uses a graphics card when there is
+one and falls back to the processor) into `lantern/tools/llama`, and a free Qwen3 model into
+`lantern/models` (Qwen3 4B, about 2.5 GB, on PCs with 8 GB of memory or more; Qwen3 1.7B on
+smaller ones). Nothing is installed into Windows, so the drive still runs on any PC.
+
+The AI only runs while questions come in: Lantern starts `llama-server` on the first `?ask`
+(loading takes up to a minute from a USB drive) and stops it after 15 idle minutes. It is skipped
+if the PC doesn't have enough free memory, and `?ask` falls back to a keyword search whenever the
+AI is off or fails.
+
+How `?ask` works: the AI turns the question into library search words ("small cut, stitch it" →
+"wound closure", "laceration"), Lantern searches Wikipedia, WikiMed and the PDF books with them,
+the AI picks the most useful pages, and (in answer mode) writes up to 3 short sentences using only
+the top page. For medical questions it is told to say first when something needs a doctor.
+
+The Relay page has a **Try it here** box to ask from the PC without a radio. To use an AI server
+that's already running instead (LM Studio, Ollama's OpenAI API, another llama-server), start
+Lantern with `LANTERN_AI_URL=http://127.0.0.1:PORT`.
 
 ## Why not GMRS
 

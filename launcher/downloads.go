@@ -197,6 +197,11 @@ func (d *Downloader) Enqueue(j Job) (*Job, error) {
 			return nil, errors.New("already in the queue")
 		}
 		j.Title = "PDF reader (for searching book collections over the radio)"
+	case "ai":
+		if d.active("ai", "") {
+			return nil, errors.New("already in the queue")
+		}
+		j.Title = "AI for Lantern Relay"
 	default:
 		return nil, errors.New("unknown download type")
 	}
@@ -285,6 +290,8 @@ func (d *Downloader) worker() {
 			err = d.runMap(ctx, j)
 		case "pdf-tools":
 			err = d.runPdfTools(ctx, j)
+		case "ai":
+			err = d.runAI(ctx, j)
 		}
 		d.mu.Lock()
 		switch {

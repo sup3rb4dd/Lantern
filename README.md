@@ -25,6 +25,8 @@ nothing installed.
   `?s water purification`; answers come back in short messages. Only nodes you allow get answers.
   Book collections (Water Treatment, Knots, Food Preparation…) are PDFs, so Lantern reads them
   once with a small PDF reader it downloads for you and searches inside them too.
+  An optional **AI helper** (runs on the PC, fully offline) answers plain questions like
+  `?ask I have a small cut, how do I close it` with the right pages and a short answer from them.
   See [RELAY.md](RELAY.md).
 
 ## Works with FieldMap
@@ -78,6 +80,7 @@ launcher/   Go source for Lantern.exe
   downloads.go   download queue, Kiwix catalog lookups, Kiwix reader and map installs
   fastdl.go      mirror speed test and parallel, resumable downloads
   relay*.go      Lantern Relay: Meshtastic link, USB serial, Kiwix search, answers
+  ai.go          AI helper: downloads and runs llama-server; relay_ask.go is ?ask
   relay_pdf.go   PDF books: reads PDFs in ZIMs once (pdftext.go, zimdir.go), searches pages
   sys_*.go       Windows job object, hidden child windows, free space, browser launch
 web/        Home, Maps, Relay and Downloads pages, plus bundled map libraries (web/lib)
@@ -86,7 +89,8 @@ package/    README.txt shipped on the drive
 
 On the drive, Lantern keeps everything under a `lantern` folder next to the exe:
 `web`, `zim` (Kiwix content), `maps` (`.pmtiles`), `kiwix` and `tools` (downloaded automatically),
-`maps-assets` (map fonts and icons), `temp` (unfinished downloads), and `relay.json` (Relay settings).
+`maps-assets` (map fonts and icons), `temp` (unfinished downloads), `relay.json` (Relay settings),
+and `models` (the AI helper's model, if set up).
 
 ## Known limitations
 

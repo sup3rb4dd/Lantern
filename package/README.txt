@@ -28,13 +28,17 @@ LANTERN RELAY (ASK OVER MESHTASTIC)
 - Your team sends the node a direct message like "?s water purification"
   and gets short answers back from this drive. No internet needed.
 - Keep the Lantern window open, and close the Meshtastic app on this PC.
+- Optional AI helper: press "Set up AI helper" on the Relay page (about
+  2.5 GB download, kept in this folder). Then people can ask in plain words,
+  like "?ask I have a small cut, how do I close it".
 
 WHAT'S IN THE "lantern" FOLDER
   web\          the home page, map viewer, Relay and downloads pages
   zim\          Wikipedia, books and guides (Kiwix .zim files)
   maps\         offline maps (.pmtiles files)
   kiwix\        the Kiwix reader (downloaded automatically)
-  tools\        the map download tool (downloaded automatically)
+  tools\        map, PDF and AI tools (downloaded automatically)
+  models\       the AI helper's model, if you set it up
   maps-assets\  map fonts and icons (downloaded automatically)
   temp\         unfinished downloads (safe to empty when nothing is downloading)
   relay.json    Lantern Relay settings
@@ -47,3 +51,4 @@ CREDITS
 Content: Wikipedia, Project Gutenberg and others via Kiwix (kiwix.org).
 Maps: (c) OpenStreetMap contributors, via Protomaps (protomaps.com).
 Map display: MapLibre GL JS, PMTiles, @protomaps/basemaps.
+AI helper (optional): llama.cpp (MIT), Qwen3 models by Alibaba Qwen (Apache 2.0).

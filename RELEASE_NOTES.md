@@ -1,5 +1,11 @@
 **Download the `Lantern-v….zip` file** below, unzip it, and copy everything inside its `Lantern` folder to the root of a USB drive (or any folder). Run `Lantern.exe` and use the **Downloads** page to add Wikipedia, books and maps. Windows 64-bit. No install needed.
 
+### New in 1.8
+- **AI helper for Lantern Relay** (optional, fully offline). Ask in plain words over the radio: `?ask I have a small cut, how do I close it`. The AI finds the right pages on the drive (Wikipedia, WikiMed, PDF books) and can write a short answer from the best one, naming its source. Medical answers say first when something needs a doctor.
+- One button on the Relay page sets it up: it downloads llama.cpp and a free Qwen3 model (about 2.5 GB) into the Lantern folder. Nothing is installed into Windows, it only runs while questions come in, and it's skipped on PCs without enough memory. Without it, `?ask` is a keyword search.
+- **Try it here** box on the Relay page, to test questions and commands without a radio.
+- Book collections' start pages no longer show up as a useless "home" result.
+
 ### New in 1.7.2
 - Bullets in Wikibooks' printable PDFs (which put each bullet at the end of the line before) now get their own lines too. No re-read needed.
 

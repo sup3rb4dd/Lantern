@@ -33,6 +33,16 @@ func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay) http.Handler {
 		}
 		writeJSON(w, map[string]any{"ok": true})
 	})
+	// Try a radio command from the browser, without a radio.
+	mux.HandleFunc("/api/relay/try", func(w http.ResponseWriter, r *http.Request) {
+		if !postOnly(w, r) {
+			return
+		}
+		var body struct{ Text string }
+		json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<12)).Decode(&body)
+		msgs, info := rl.Try(body.Text)
+		writeJSON(w, map[string]any{"messages": msgs, "info": info})
+	})
 	mux.HandleFunc("/api/relay/config", func(w http.ResponseWriter, r *http.Request) {
 		if !postOnly(w, r) {
 			return
