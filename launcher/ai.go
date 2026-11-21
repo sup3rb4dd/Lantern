@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -356,7 +355,7 @@ func pickAIModel(totalRAM uint64) *aiModelChoice {
 }
 
 var (
-	llamaReleaseAPI = envOr("LANTERN_LLAMA_API", "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest")
+	llamaReleaseAPI = envOr("LANTERN_LLAMA_API", "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=15")
 	hfBase          = strings.TrimRight(envOr("LANTERN_HF", "https://huggingface.co"), "/")
 )
 
@@ -415,31 +414,56 @@ func (d *Downloader) installLlama(ctx context.Context, j *Job, ai *aiEngine) err
 	if err != nil {
 		return fmt.Errorf("couldn't look up llama.cpp: %w", err)
 	}
-	var rel struct {
+	type release struct {
 		Tag    string `json:"tag_name"`
+		Draft  bool   `json:"draft"`
 		Assets []struct {
 			Name string `json:"name"`
 			URL  string `json:"browser_download_url"`
 			Size int64  `json:"size"`
 		} `json:"assets"`
 	}
-	if err := json.Unmarshal(body, &rel); err != nil {
-		return errors.New("couldn't read the llama.cpp release list")
+	var rels []release
+	if err := json.Unmarshal(body, &rels); err != nil {
+		var one release // a single release also works
+		if json.Unmarshal(body, &one) != nil || one.Tag == "" {
+			var gh struct {
+				Message string `json:"message"`
+			}
+			if json.Unmarshal(body, &gh) == nil && gh.Message != "" {
+				return errors.New("GitHub said: " + truncBytes(gh.Message, 120) + " (try again in an hour)")
+			}
+			return errors.New("couldn't read the llama.cpp release list")
+		}
+		rels = []release{one}
 	}
-	// Vulkan uses almost any graphics card when there is one and falls back to the CPU.
-	sort.SliceStable(rel.Assets, func(x, y int) bool {
-		return strings.Contains(rel.Assets[x].Name, "vulkan") && !strings.Contains(rel.Assets[y].Name, "vulkan")
-	})
+	// llama.cpp publishes several builds a day, and a brand-new release can be
+	// listed before its Windows files finish uploading. Use the newest release
+	// that has them. Vulkan uses almost any graphics card and falls back to the CPU.
 	var url, name string
 	var size int64
-	for _, as := range rel.Assets {
-		if llamaZipRe.MatchString(as.Name) {
-			url, name, size = as.URL, as.Name, as.Size
+	var rel release
+	for _, r := range rels {
+		if r.Draft {
+			continue
+		}
+		for _, want := range []string{"vulkan", "cpu"} {
+			for _, as := range r.Assets {
+				if m := llamaZipRe.FindStringSubmatch(as.Name); m != nil && m[2] == want {
+					url, name, size, rel = as.URL, as.Name, as.Size, r
+					break
+				}
+			}
+			if url != "" {
+				break
+			}
+		}
+		if url != "" {
 			break
 		}
 	}
 	if url == "" {
-		return errors.New("no Windows build in the latest llama.cpp release")
+		return errors.New("no Windows build in the recent llama.cpp releases; try again in an hour")
 	}
 	j.Title = "AI engine (llama.cpp " + rel.Tag + ")"
 	zipPath := filepath.Join(d.p.Temp, name)

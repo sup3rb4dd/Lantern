@@ -38,10 +38,11 @@ func TestAISetupDownloads(t *testing.T) {
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/release":
-			fmt.Fprintf(w, `{"tag_name":"b9999","assets":[
+			fmt.Fprintf(w, `[{"tag_name":"b10000","assets":[{"name":"llama-b10000-bin-macos-arm64.zip","browser_download_url":"x"}]},
+				{"tag_name":"b9999","assets":[
 				{"name":"llama-b9999-bin-win-cpu-x64.zip","browser_download_url":"%[1]s/cpu.zip","size":5},
 				{"name":"llama-b9999-bin-win-cuda-12.4-x64.zip","browser_download_url":"%[1]s/cuda.zip","size":5},
-				{"name":"llama-b9999-bin-win-vulkan-x64.zip","browser_download_url":"%[1]s/vulkan.zip","size":%[2]d}]}`, srv.URL, zipBuf.Len())
+				{"name":"llama-b9999-bin-win-vulkan-x64.zip","browser_download_url":"%[1]s/vulkan.zip","size":%[2]d}]}]`, srv.URL, zipBuf.Len())
 		case "/vulkan.zip":
 			w.Write(zipBuf.Bytes())
 		case "/api/models/Qwen/Qwen3-4B-GGUF", "/api/models/Qwen/Qwen3-1.7B-GGUF":
