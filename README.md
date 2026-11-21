@@ -23,6 +23,8 @@ nothing installed.
 - **Lantern Relay.** Plug a Meshtastic node into the PC and your team can search the drive over the
   mesh, from FieldMap's Ask Lantern screen or any Meshtastic app. Questions are direct messages like
   `?s water purification`; answers come back in short messages. Only nodes you allow get answers.
+  Book collections (Water Treatment, Knots, Food Preparation…) are PDFs, so Lantern reads them
+  once with a small PDF reader it downloads for you and searches inside them too.
   See [RELAY.md](RELAY.md).
 
 ## Using it
@@ -55,6 +57,7 @@ launcher/   Go source for Lantern.exe
   downloads.go   download queue, Kiwix catalog lookups, Kiwix reader and map installs
   fastdl.go      mirror speed test and parallel, resumable downloads
   relay*.go      Lantern Relay: Meshtastic link, USB serial, Kiwix search, answers
+  relay_pdf.go   PDF books: reads PDFs in ZIMs once (pdftext.go, zimdir.go), searches pages
   sys_*.go       Windows job object, hidden child windows, free space, browser launch
 web/        Home, Maps, Relay and Downloads pages, plus bundled map libraries (web/lib)
 package/    README.txt shipped on the drive

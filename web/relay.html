@@ -51,6 +51,7 @@
       <dt>Gateway node</dt><dd id="myNode">—</dd>
       <dt>Connected on</dt><dd id="port">—</dd>
       <dt>Search</dt><dd id="search">—</dd>
+      <dt>PDF books</dt><dd id="pdf">—</dd>
     </dl>
     <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)">
       <div class="grow small muted">Radio check: the gateway broadcasts a short test message. If a nearby node repeats it, the result shows in Activity below, and it appears in chat on that channel.</div>
@@ -234,12 +235,44 @@ function render(s) {
     : '<option value="">No other nodes heard yet</option>';
   if (heard.some(n => n.id === keep)) $('heardSel').value = keep;
 
+  renderPdf(s.pdf);
+
   $('log').innerHTML = s.log.length ? s.log.map(e => `<tr>
       <td class="muted">${new Date(e.time * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</td>
       <td>${Lantern.esc(e.name || e.node)}</td>
       <td class="mono">${Lantern.esc(e.text)}</td>
       <td class="muted">${Lantern.esc(e.info)}</td></tr>`).join('')
     : '<tr><td colspan="4" class="muted">No questions yet.</td></tr>';
+}
+
+let pdfRequested = false;
+function renderPdf(p) {
+  const el = $('pdf');
+  if (!p) { el.textContent = '—'; return; }
+  const notes = (p.notes || []).map(n => `<div class="muted small">${Lantern.esc(n)}</div>`).join('');
+  let html;
+  if (p.state === 'needs-tool' && pdfRequested) {
+    html = 'Getting the PDF reader… (progress on the <a href="/downloads.html">Downloads</a> page)';
+  } else if (p.state === 'needs-tool') {
+    html = `Book collections with PDFs found. Relay needs a small PDF reader to search inside them. ` +
+      `<button class="btn ghost" type="button" id="getPdf" style="margin-left:6px">Get the PDF reader</button>`;
+  } else if (p.state === 'indexing') {
+    html = `Reading books for radio search: ${p.done + 1} of ${p.total} <span class="muted">(${Lantern.esc(p.current)})</span>`;
+  } else if (p.state === 'ready') {
+    html = `<span style="color:var(--ok)">Ready</span>: ${p.docs} PDF${p.docs === 1 ? '' : 's'}, ${p.pages} pages searchable` +
+      (p.scanned ? ` <span class="muted">(${p.scanned} scanned PDF${p.scanned === 1 ? '' : 's'} can't be read over the radio)</span>` : '');
+  } else {
+    html = '<span class="muted">None on the drive. Book collections like Water Treatment are searched here once downloaded.</span>';
+  }
+  el.innerHTML = html + notes;
+  const b = $('getPdf');
+  if (b) b.onclick = async () => {
+    b.disabled = true;
+    const r = await Lantern.api('/api/download', { kind: 'pdf-tools' });
+    if (r.error && !/already/.test(r.error)) { b.textContent = r.error; return; }
+    pdfRequested = true;
+    refresh();
+  };
 }
 
 async function refresh() {

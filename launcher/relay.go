@@ -150,6 +150,7 @@ type relayIn struct {
 type Relay struct {
 	p        Paths
 	ks       *kiwixSearcher
+	pdf      *pdfLibrary // PDF books; nil in some tests
 	cfgPath  string
 	mu       sync.Mutex
 	cfg      relayConfig
@@ -621,6 +622,12 @@ func (r *Relay) runCommand(s *relaySession, cfg relayConfig, text string) ([]str
 			return notice(fmt.Sprintf("pick a result from 1 to %d.", len(s.results))), "bad result number"
 		}
 		h := s.results[n-1]
+		if h.pdf != nil {
+			s.art = pdfArticle(h.pdf, h.Source)
+			r.openSection(s, cfg, h.page+1) // section N is page N
+			msgs, _ := r.sendChunks(s, cfg, "")
+			return msgs, fmt.Sprintf("opened %q page %d", h.pdf.Title, h.page+1)
+		}
 		a, err := r.ks.Fetch(ctx, h)
 		if err != nil {
 			return notice("couldn't open that page (" + err.Error() + ")"), "fetch failed: " + err.Error()
@@ -639,7 +646,7 @@ func (r *Relay) searchPage(ctx context.Context, s *relaySession, cfg relayConfig
 	if start > 0 && start >= s.total {
 		return notice("no more results for \"" + truncBytes(s.query, 40) + "\"."), "no more results"
 	}
-	hits, total, err := r.ks.Search(ctx, s.query, start, perPage)
+	hits, total, err := r.search(ctx, s.query, start, perPage)
 	if err != nil {
 		return notice("search isn't working (" + err.Error() + ")"), "search failed: " + err.Error()
 	}
@@ -666,7 +673,11 @@ func (r *Relay) searchPage(ctx context.Context, s *relaySession, cfg relayConfig
 	for i, h := range hits {
 		tag := " [" + h.Source + "]"
 		num := fmt.Sprintf("%d ", start+i+1)
-		lines[i] = num + truncBytes(h.Title, lineMax-len(num)-len(tag)) + tag
+		page := ""
+		if h.pdf != nil {
+			page = fmt.Sprintf(" p.%d", h.page+1)
+		}
+		lines[i] = num + truncBytes(h.Title, lineMax-len(num)-len(tag)-len(page)) + page + tag
 	}
 	msgs := packLines(lines, cfg.ChunkBytes-len(header)-1)
 	for i := range msgs {
@@ -675,9 +686,46 @@ func (r *Relay) searchPage(ctx context.Context, s *relaySession, cfg relayConfig
 	return msgs, fmt.Sprintf("%d results (%d total)", len(hits), total)
 }
 
+// search combines Kiwix's results with pages from PDF books, taking turns
+// (a PDF page that matches every word goes first).
+func (r *Relay) search(ctx context.Context, q string, start, count int) ([]searchHit, int, error) {
+	need := start + count
+	kh, ktotal, kerr := r.ks.Search(ctx, q, 0, need)
+	var ph []pdfHit
+	if r.pdf != nil {
+		ph = r.pdf.Search(q, 200)
+	}
+	if kerr != nil && len(ph) == 0 {
+		return nil, 0, kerr
+	}
+	var merged []searchHit
+	pdfFirst := len(ph) > 0 && ph[0].score >= 1000
+	ki, pi := 0, 0
+	for len(merged) < need && (ki < len(kh) || pi < len(ph)) {
+		takePdf := pi < len(ph) && (ki >= len(kh) || (len(merged)%2 == 0) == pdfFirst)
+		if takePdf {
+			h := ph[pi]
+			merged = append(merged, searchHit{Title: h.doc.Title, Book: h.doc.Book, Path: h.doc.Path,
+				Source: sourceLabel(h.doc.Book, ""), pdf: h.doc, page: h.page})
+			pi++
+		} else {
+			merged = append(merged, kh[ki])
+			ki++
+		}
+	}
+	total := ktotal + len(ph)
+	if start >= len(merged) {
+		return nil, total, nil
+	}
+	return merged[start:], total, nil
+}
+
 func (r *Relay) openSection(s *relaySession, cfg relayConfig, n int) {
 	sec := s.art.Sections[n]
-	head := "§ " + sec.Title
+	head := fmt.Sprintf("§%d %s", n, sec.Title)
+	if sec.Short != "" {
+		head = fmt.Sprintf("§%d %s", n, sec.Short)
+	}
 	if n == 0 {
 		head = s.art.Title + " [" + s.art.Source + "]"
 	}
@@ -831,14 +879,23 @@ type relayStatus struct {
 	Ignored []meshNode      `json:"ignored"`
 	Log     []relayLogEntry `json:"log"`
 	Search  bool            `json:"searchReady"`
+	PDF     *pdfStatus      `json:"pdf,omitempty"`
 }
 
 func (r *Relay) Status() relayStatus {
 	ports := listSerialPorts()
 	searchReady := r.ks.base() != "" && len(r.ks.books()) > 0
+	var ps *pdfStatus
+	if r.pdf != nil {
+		s := r.pdf.Status()
+		ps = &s
+		if s.Docs > 0 {
+			searchReady = true
+		}
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	st := relayStatus{State: r.state, Detail: r.detail, Port: r.portName, Config: r.cfg, Ports: ports, Search: searchReady}
+	st := relayStatus{State: r.state, Detail: r.detail, Port: r.portName, Config: r.cfg, Ports: ports, Search: searchReady, PDF: ps}
 	if st.Ports == nil {
 		st.Ports = []string{}
 	}

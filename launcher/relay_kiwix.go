@@ -24,6 +24,8 @@ type searchHit struct {
 	Path   string // entry path inside the ZIM, URL-escaped
 	Source string // short label shown on the radio
 	Snip   string
+	pdf    *pdfDoc // set for a page of a PDF book
+	page   int     // 0-based page, for PDF hits
 }
 
 type kiwixSearcher struct {
@@ -219,11 +221,17 @@ func sourceLabel(book, bookTitle string) string {
 		{"wikibooks", "Wikibooks"}, {"wikivoyage", "Travel"}, {"wikihow", "wikiHow"},
 		{"wiktionary", "Dict"}, {"wikiversity", "Course"}, {"wikisource", "Source"},
 		{"zimgit-post-disaster", "Survival"}, {"zimgit-water", "Water"}, {"zimgit-medicine", "Med"},
-		{"zimgit-food-preparation", "Food"}, {"zimgit-knots", "Knots"},
+		{"zimgit-food-preparation", "Food"}, {"zimgit-knots", "Knots"}, {"usda", "USDA"},
 	}
 	for _, k := range known {
 		if strings.HasPrefix(n, k.prefix) {
 			return k.label
+		}
+	}
+	// other book collections: "zimgit-first-aid_en_2024" -> "First"
+	if rest, ok := strings.CutPrefix(n, "zimgit-"); ok {
+		if w := strings.FieldsFunc(rest, func(r rune) bool { return r == '-' || r == '_' }); len(w) > 0 {
+			return truncBytes(strings.ToUpper(w[0][:1])+w[0][1:], 12)
 		}
 	}
 	t := strings.TrimSpace(bookTitle)

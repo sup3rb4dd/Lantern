@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.6.3"
+const version = "1.7.0"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {
@@ -103,6 +104,16 @@ func main() {
 	dl := newDownloader(p, kx)
 
 	rl := newRelay(p, kx)
+	pdfCtx, stopPdf := context.WithCancel(context.Background())
+	defer stopPdf()
+	rl.pdf = newPdfLibrary(p, kx)
+	go rl.pdf.Run(pdfCtx) // reads PDFs in book collections once, for Relay search
+	dl.onDone = func(kind string) {
+		if kind == "zim" || kind == "pdf-tools" {
+			time.Sleep(5 * time.Second) // let kiwix-serve restart with the new file
+			rl.pdf.Kick()
+		}
+	}
 	rl.Start() // only connects if Lantern Relay is turned on in its settings
 
 	port := pickPort(8484)

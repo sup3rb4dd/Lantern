@@ -65,12 +65,20 @@ Source labels: `Wiki`, `Med` (WikiMed), `Book` (Gutenberg), `iFixit`, `Wikibooks
 
 **Article text.** `[p/P] ` then text, where p/P counts messages within the current section.
 The first message of a section has a heading line: the article title and source for the
-summary (section 0), or `§ ` + the section name otherwise. Smaller headings appear inline as `— Name —`.
+summary (section 0), or `§N Name` for section N (e.g. `§2 Boiling`). Smaller headings appear
+inline as `— Name —`.
 ```
 [1/6] Water purification [Wiki]
 Water purification is the process of removing undesirable chemicals…
 [2/6] The goal is to produce water fit for specific purposes…
 ```
+
+**PDF books.** Book collections (like Water Treatment) are mostly PDFs, which Kiwix's search
+can't look inside. Lantern reads each PDF once (with pdftotext, downloaded on first use) and
+keeps its own index in `lantern/pdfindex`. A PDF result names its page: `2 Emergency Water
+Treatment p.3 [Water]`. Opening it starts at that page. In a PDF, section 0 is an overview and
+section N is page N, so `?go 14` reads page 14 and `?toc` lists the pages as `14 p.14 Title`.
+Scanned PDFs (pictures of pages) have no text and are skipped. The Relay page shows progress.
 
 **Sections.** `☰ p/P`, then one `N Name` line per section (0 is always the summary):
 ```

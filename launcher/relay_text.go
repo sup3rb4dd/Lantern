@@ -14,6 +14,7 @@ import (
 type section struct {
 	Title string
 	Text  string
+	Short string // heading to send instead of Title, when Title just repeats the text's start
 }
 
 type article struct {

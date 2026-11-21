@@ -97,6 +97,7 @@ type Downloader struct {
 	ctx    context.Context
 	stop   context.CancelFunc
 	client *http.Client
+	onDone func(kind string) // called after a job finishes successfully
 }
 
 func newDownloader(p Paths, kx *Kiwix) *Downloader {
@@ -153,6 +154,11 @@ func (d *Downloader) Enqueue(j Job) (*Job, error) {
 		if !d.kx.Installed() && !d.active("kiwix-tools", "") {
 			d.addLocked(Job{Kind: "kiwix-tools", Title: "Kiwix reader (needed for Wikipedia and books)"})
 		}
+		// Book collections are mostly PDFs; Lantern Relay needs pdftotext to search inside them.
+		if strings.HasPrefix(strings.ToLower(j.Name), "zimgit") && runtime.GOOS == "windows" &&
+			pdftotextPath(d.p) == "" && !d.active("pdf-tools", "") {
+			defer d.addLocked(Job{Kind: "pdf-tools", Title: "PDF reader (for searching book collections over the radio)"})
+		}
 		key := j.Name
 		if key == "" {
 			key = j.URL
@@ -186,6 +192,11 @@ func (d *Downloader) Enqueue(j Job) (*Job, error) {
 			return nil, errors.New("already in the queue")
 		}
 		j.Title = "Kiwix reader"
+	case "pdf-tools":
+		if d.active("pdf-tools", "") {
+			return nil, errors.New("already in the queue")
+		}
+		j.Title = "PDF reader (for searching book collections over the radio)"
 	default:
 		return nil, errors.New("unknown download type")
 	}
@@ -272,6 +283,8 @@ func (d *Downloader) worker() {
 			err = d.runZim(ctx, j)
 		case "map":
 			err = d.runMap(ctx, j)
+		case "pdf-tools":
+			err = d.runPdfTools(ctx, j)
 		}
 		d.mu.Lock()
 		switch {
@@ -288,6 +301,9 @@ func (d *Downloader) worker() {
 				}
 			}
 			fmt.Println("Download finished:", j.Title)
+			if d.onDone != nil {
+				go d.onDone(j.Kind)
+			}
 		}
 		j.Speed = 0
 		if j.cancel != nil {
@@ -543,6 +559,58 @@ func (d *Downloader) runKiwixTools(ctx context.Context, j *Job) error {
 		return errors.New("kiwix-serve.exe wasn't found in the download")
 	}
 	d.kx.Restart()
+	return nil
+}
+
+// ---------- PDF reader (Xpdf's pdftotext) ----------
+
+var (
+	xpdfPage     = envOr("LANTERN_XPDF_PAGE", "https://www.xpdfreader.com/download.html")
+	xpdfDownload = envOr("LANTERN_XPDF_DL", "https://dl.xpdfreader.com/")
+	xpdfZipRe    = regexp.MustCompile(`xpdf-tools-win-([0-9]+(?:\.[0-9]+)+)\.zip`)
+)
+
+func (d *Downloader) runPdfTools(ctx context.Context, j *Job) error {
+	if pdftotextPath(d.p) != "" {
+		d.setStep(j, "Already installed")
+		return nil
+	}
+	if runtime.GOOS != "windows" {
+		return errors.New("install pdftotext from your system's packages (poppler-utils)")
+	}
+	d.setStep(j, "Finding the latest PDF reader")
+	best := "4.05" // fallback if the download page can't be read
+	if body, err := d.getBytes(ctx, xpdfPage); err == nil {
+		for _, m := range xpdfZipRe.FindAllStringSubmatch(string(body), -1) {
+			if versionLess(best, m[1]) {
+				best = m[1]
+			}
+		}
+	}
+	name := "xpdf-tools-win-" + best + ".zip"
+	j.Title = "PDF reader (Xpdf tools " + best + ")"
+	zipPath := filepath.Join(d.p.Temp, name)
+	if err := d.downloadFile(ctx, j, strings.TrimSuffix(xpdfDownload, "/")+"/"+name, zipPath, 0); err != nil {
+		return err
+	}
+	d.setStep(j, "Unpacking")
+	os.MkdirAll(d.p.Tools, 0o755)
+	tmp := filepath.Join(d.p.Temp, "xpdf")
+	os.RemoveAll(tmp)
+	err := unzipFlatten(zipPath, tmp, func(p string) bool {
+		return p == "bin64/pdftotext.exe" || p == "COPYING3" || p == "COPYING" || p == "README"
+	})
+	os.Remove(zipPath)
+	if err != nil {
+		return fmt.Errorf("unpacking the PDF reader: %w", err)
+	}
+	defer os.RemoveAll(tmp)
+	if err := os.Rename(filepath.Join(tmp, "bin64", "pdftotext.exe"), filepath.Join(d.p.Tools, "pdftotext.exe")); err != nil {
+		return errors.New("pdftotext.exe wasn't found in the download")
+	}
+	for _, f := range []string{"COPYING3", "COPYING", "README"} {
+		os.Rename(filepath.Join(tmp, f), filepath.Join(d.p.Tools, "xpdf-"+f+".txt"))
+	}
 	return nil
 }
 
