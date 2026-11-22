@@ -14,8 +14,29 @@ import (
 	"time"
 )
 
-func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay) http.Handler {
+func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay, sh *sharer) http.Handler {
 	mux := http.NewServeMux()
+
+	// Share on my network: other devices on the WiFi can open Lantern.
+	mux.HandleFunc("/api/share", func(w http.ResponseWriter, r *http.Request) {
+		visitor := r.Header.Get("X-Lantern-Visitor") == "1"
+		if r.Method == http.MethodPost {
+			if visitor {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			var c shareConfig
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<12)).Decode(&c); err != nil {
+				http.Error(w, "bad request", http.StatusBadRequest)
+				return
+			}
+			if err := sh.Set(c); err != nil {
+				writeJSON(w, map[string]string{"error": err.Error()})
+				return
+			}
+		}
+		writeJSON(w, sh.Status(visitor))
+	})
 
 	// Lantern Relay: Meshtastic gateway status and settings.
 	mux.HandleFunc("/api/relay/status", func(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +240,7 @@ func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay) http.Handler {
 		web.ServeHTTP(w, r)
 	}))
 
+	sh.handler = mux
 	return localOnly(mux)
 }
 
@@ -226,6 +248,7 @@ func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay) http.Handler {
 // cross-site form posts to the API.
 func localOnly(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Del("X-Lantern-Visitor")
 		host := r.Host
 		if i := strings.LastIndex(host, ":"); i >= 0 {
 			host = host[:i]

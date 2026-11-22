@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.8.2"
+const version = "1.9.0"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {
@@ -117,12 +117,14 @@ func main() {
 	rl.ai = newAI(p) // local AI for ?ask; starts only when a question comes in
 	rl.Start()       // only connects if Lantern Relay is turned on in its settings
 
+	sh := newSharer(p) // "Share on my network" (off unless turned on)
+
 	port := pickPort(8484)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	url := "http://" + addr + "/"
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newServer(p, kx, dl, rl),
+		Handler:           newServer(p, kx, dl, rl, sh),
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 
@@ -135,6 +137,7 @@ func main() {
 	}()
 
 	time.Sleep(300 * time.Millisecond)
+	sh.Start()
 	fmt.Println()
 	fmt.Println("Lantern is running at", url)
 	fmt.Println("Your browser should open automatically.")
@@ -152,6 +155,7 @@ func main() {
 	<-sig
 	fmt.Println("Shutting down...")
 	dl.Shutdown()
+	sh.Stop()
 	rl.Stop()
 	rl.ai.Stop()
 	kx.Stop()

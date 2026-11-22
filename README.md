@@ -28,6 +28,8 @@ nothing installed.
   An optional **AI helper** (runs on the PC, fully offline) answers plain questions like
   `?ask I have a small cut, how do I close it` with the right pages and a short answer from them.
   See [RELAY.md](RELAY.md).
+- **Share on my network** (optional): open Lantern from an iPad, phone or another computer on
+  the same WiFi. Visitors can read; only the Lantern PC can change things. Optional PIN.
 
 ## Works with FieldMap
 

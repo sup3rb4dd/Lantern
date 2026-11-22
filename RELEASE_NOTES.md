@@ -1,5 +1,8 @@
 **Download the `Lantern-v….zip` file** below, unzip it, and copy everything inside its `Lantern` folder to the root of a USB drive (or any folder). Run `Lantern.exe` and use the **Downloads** page to add Wikipedia, books and maps. Windows 64-bit. No install needed.
 
+### New in 1.9
+- **Share on my network** (Home page, off by default): open Lantern from an iPad, phone or another computer on the same WiFi at `http://<this PC>:8488/`. Visitors can read everything, browse maps and try Relay questions; only the Lantern PC can change settings, download or delete. Optional PIN. Works on a Windows Mobile Hotspot with no internet too.
+
 ### New in 1.8.2
 - The AI helper now assumes you're off-grid: it no longer tells you to call 911 or see a doctor, and gives the steps you can do yourself. Serious situations are still called serious, with warning signs to watch for.
 
