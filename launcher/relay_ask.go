@@ -31,6 +31,8 @@ func init() {
 	}
 }
 
+var fromRe = regexp.MustCompile(`\(from \d\)\s*$`)
+
 var askWordRe = regexp.MustCompile(`[\p{L}\p{N}'-]+`)
 
 // askKeywords strips filler words so a plain question still makes a decent search.
@@ -61,10 +63,11 @@ For "how do I" questions prefer practical guides and first-aid or how-to pages o
 Only use result numbers from the list.`
 
 const askAnswerPrompt = `You are Lantern, an offline field reference read over a slow radio link.
-Answer using ONLY the source text given. Plain text, no markdown, at most 3 short sentences or numbered steps, under 300 characters.
+Answer using ONLY the numbered sources given. Plain text, no markdown, at most 3 short sentences or numbered steps, under 350 characters.
+Use whichever sources help; combine them if needed. End with the number of the source you used most, like "(from 2)".
 The person is off-grid: there is no phone service, no emergency services and no doctor to reach. Never tell them to call for help, call 911, go to a hospital or see a doctor. Give the most useful steps they can do themselves with what's at hand.
 Medical or safety questions: if the situation is serious (heavy bleeding, deep or gaping wounds, trouble breathing, severe allergic reaction, signs of infection), say so plainly in a few words, give the most important steps first, and name the warning signs that it is getting worse.
-If the source text doesn't answer the question, say "Not covered here" and say what the page does cover.
+If the sources only partly answer, give the parts they do cover. Only if none of them is about the question at all, say "Not covered here" and name the closest source.
 Never make up steps, doses or facts that are not in the source.`
 
 var (
@@ -180,15 +183,27 @@ func (r *Relay) ask(s *relaySession, cfg relayConfig, q string) ([]string, strin
 		pool[i] = cands[n]
 	}
 
-	// 4. Short answer from the top page only.
+	// 4. Short answer from the best pages (the AI's top picks, numbered as the reply lists them).
 	var msgs []string
 	if cfg.AI == aiModeAnswer && aiErr == nil {
-		if src := r.sourceText(ctx, pool[0], searches, 3500); src != "" {
-			user := fmt.Sprintf("Question: %s\n\nSource: %s [%s]\n%s", q, pool[0].Title, pool[0].Source, src)
-			ans, err := r.ai.Chat(ctx, askAnswerPrompt, user, nil, 160)
+		terms := append(append([]string{}, searches...), q)
+		var b strings.Builder
+		fmt.Fprintf(&b, "Question: %s\n", q)
+		used := 0
+		for i := 0; i < len(pool) && i < 3; i++ {
+			if src := r.sourceText(ctx, pool[i], terms, 2400); src != "" {
+				fmt.Fprintf(&b, "\nSource %d: %s [%s]\n%s\n", i+1, pool[i].Title, pool[i].Source, src)
+				used++
+			}
+		}
+		if used > 0 {
+			ans, err := r.ai.Chat(ctx, askAnswerPrompt, b.String(), nil, 200)
 			if err == nil && ans != "" {
-				ans = tidyAnswer(ans, 320)
-				for _, m := range chunkText("🤖 "+ans+" (from 1)", cfg.ChunkBytes-2) {
+				ans = tidyAnswer(ans, 400)
+				if !fromRe.MatchString(ans) {
+					ans += " (from 1)"
+				}
+				for _, m := range chunkText("🤖 "+ans, cfg.ChunkBytes-2) {
 					msgs = append(msgs, m)
 				}
 				info += "; answered"
@@ -263,7 +278,7 @@ func (r *Relay) sourceText(ctx context.Context, h searchHit, terms []string, max
 	words := map[string]bool{}
 	for _, t := range terms {
 		for _, w := range strings.Fields(strings.ToLower(t)) {
-			if len(w) > 2 {
+			if w = strings.Trim(w, ".,?!;:\"()"); len(w) > 2 && !askStop[w] {
 				words[w] = true
 			}
 		}

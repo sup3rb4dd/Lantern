@@ -118,7 +118,7 @@ AI is off or fails.
 How `?ask` works: the AI turns the question into library search words ("small cut, stitch it" →
 "wound closure", "laceration"), Lantern searches Wikipedia, WikiMed and the PDF books with them,
 the AI picks the most useful pages, and (in answer mode) writes up to 3 short sentences using only
-the top page. It assumes you're off-grid: it never tells you to call 911 or see a doctor
+the top 3 pages, naming the one it used most ("from 2"). It assumes you're off-grid: it never tells you to call 911 or see a doctor
 (those lines are also filtered out if the model adds them anyway). For serious medical
 situations it says so plainly, puts the most important steps first and names warning signs.
 

@@ -1,5 +1,8 @@
 **Download the `Lantern-v….zip` file** below, unzip it, and copy everything inside its `Lantern` folder to the root of a USB drive (or any folder). Run `Lantern.exe` and use the **Downloads** page to add Wikipedia, books and maps. Windows 64-bit. No install needed.
 
+### New in 1.10.1
+- AI helper answers more often: it now reads the top 3 pages it found (not just the best one), picks the right sections of long articles better, and gives what the pages do cover instead of "Not covered here". Answers name the page they used, like "(from 2)".
+
 ### New in 1.10
 - **New look to match FieldMap:** black with phosphor green, HUD-style panels and a monospace font that works offline.
 - **Settings page** to change the colors: four presets (FieldMap Green, Amber Terminal, Night Red for keeping your night vision, Arctic) or pick each color yourself, with a live preview. Choose whether devices viewing over the network use it too, and dark or light maps.
