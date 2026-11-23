@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.9.0"
+const version = "1.10.0"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {
@@ -124,7 +124,7 @@ func main() {
 	url := "http://" + addr + "/"
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newServer(p, kx, dl, rl, sh),
+		Handler:           newServer(p, kx, dl, rl, sh, newThemeStore(p)),
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 

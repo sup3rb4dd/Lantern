@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Downloads · Lantern</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/theme.css">
 </head>
 <body>
 <header class="top">
   <a class="brand" href="/">
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5B947" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
     <span><b>Lantern</b><small>Offline knowledge drive</small></span>
   </a>
   <nav class="nav" aria-label="Main">
@@ -17,8 +18,9 @@
     <a href="/maps.html" data-id="maps">Maps</a>
     <a href="/relay.html" data-id="relay">Relay</a>
     <a href="/downloads.html" data-id="downloads">Downloads</a>
+    <a href="/settings.html" data-id="settings">Settings</a>
   </nav>
-  <span class="pill"><span class="dot" style="background:#5B9BF0"></span>Needs internet for this page</span>
+  <span class="pill"><span class="dot" style="background:var(--mesh)"></span>Needs internet for this page</span>
 </header>
 
 <main>
@@ -113,7 +115,7 @@ function updateSpace() {
   document.getElementById('dlSelected').disabled = !selected.size;
   if (!selected.size) { t.textContent = 'Nothing selected.'; t.style.color = ''; return; }
   t.textContent = 'Selected: about ' + Lantern.bytes(need) + (need > status.diskFree ? ' — more than the free space!' : ' — fits.');
-  t.style.color = need > status.diskFree ? '#F07A6E' : '';
+  t.style.color = need > status.diskFree ? 'var(--bad)' : '';
   document.getElementById('dlSelected').disabled = false;
 }
 
@@ -140,7 +142,7 @@ function renderPicks() {
           <span class="muted small" style="display:block;margin-top:3px">${Lantern.esc(p.note)}</span>
         </label>
         ${p.sections ? gutSelect() : ''}
-        ${gutHave.length ? `<div class="small" style="margin-top:8px;color:#4CC38A">On drive: ${gutHave.map(n => Lantern.esc(Lantern.gutenbergLabel(n))).join(', ')}</div>` : ''}
+        ${gutHave.length ? `<div class="small" style="margin-top:8px;color:var(--accent)">On drive: ${gutHave.map(n => Lantern.esc(Lantern.gutenbergLabel(n))).join(', ')}</div>` : ''}
       </div>
       <span class="muted small" style="min-width:80px;text-align:right">${size === undefined ? '…' : size === null ? 'unavailable' : Lantern.bytes(size)}</span>
       ${inst ? '<span class="tag ok">ON DRIVE</span>' : `<button class="btn ghost" type="button" data-dl="${p.name}">Download</button>`}
@@ -223,7 +225,7 @@ async function pollJobs() {
     const busy = j.status === 'running' && !j.total;
     const eta = j.speed > 0 && j.total ? Lantern.duration((j.total - j.bytes) / j.speed) + ' left' : '';
     const tag = { queued: '<span class="tag grey">QUEUED</span>', running: '<span class="tag">DOWNLOADING</span>',
-      done: '<span class="tag ok">DONE</span>', error: '<span class="tag" style="background:#F07A6E">FAILED</span>',
+      done: '<span class="tag ok">DONE</span>', error: '<span class="tag" style="background:var(--bad)">FAILED</span>',
       canceled: '<span class="tag grey">STOPPED</span>' }[j.status];
     return `<div class="card">
       <div class="row" style="margin-bottom:10px">
@@ -237,7 +239,7 @@ async function pollJobs() {
         ${j.status === 'running' && j.speed ? ' · ' + Lantern.bytes(j.speed) + '/s' : ''}
         ${eta ? ' · ' + eta : ''}
       </div>
-      ${j.error ? `<div class="small" style="color:#F07A6E;margin-top:6px">${Lantern.esc(j.error)}</div>` : ''}
+      ${j.error ? `<div class="small" style="color:var(--bad);margin-top:6px">${Lantern.esc(j.error)}</div>` : ''}
     </div>`;
   }).join('');
   const done = jobs.filter(j => j.status === 'done').length;

@@ -14,8 +14,9 @@ import (
 	"time"
 )
 
-func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay, sh *sharer) http.Handler {
+func newServer(p Paths, kx *Kiwix, dl *Downloader, rl *Relay, sh *sharer, th *themeStore) http.Handler {
 	mux := http.NewServeMux()
+	themeHandlers(mux, th)
 
 	// Share on my network: other devices on the WiFi can open Lantern.
 	mux.HandleFunc("/api/share", func(w http.ResponseWriter, r *http.Request) {

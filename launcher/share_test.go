@@ -17,7 +17,7 @@ func TestShareGuard(t *testing.T) {
 	os.MkdirAll(p.Web, 0o755)
 	os.WriteFile(filepath.Join(p.Web, "index.html"), []byte("<h1>home</h1>"), 0o644)
 	sh := newSharer(p)
-	local := newServer(p, newKiwix(p), newDownloader(p, nil), newRelay(p, nil), sh)
+	local := newServer(p, newKiwix(p), newDownloader(p, nil), newRelay(p, nil), sh, newThemeStore(p))
 	visitor := httptest.NewServer(sh.guard(sh.handler))
 	defer visitor.Close()
 	lsrv := httptest.NewServer(local)
@@ -91,5 +91,23 @@ func TestShareGuard(t *testing.T) {
 	}
 	if code, body := get(cj, visitor.URL+"/"); code != 200 || !strings.Contains(body, "home") {
 		t.Fatalf("after PIN: %d %q", code, body)
+	}
+}
+
+func TestTheme(t *testing.T) {
+	p := testPaths(t)
+	th := newThemeStore(p)
+	if css := th.CSS(false); !strings.Contains(css, "--accent:#39FF14;") || !strings.Contains(css, "--map:dark;") {
+		t.Fatalf("default css: %s", css)
+	}
+	c, _ := th.Set(themeConfig{Preset: "custom", Colors: map[string]string{"accent": "#ff0000", "dim": "red;}body{x"}, Network: false})
+	if c.Colors["accent"] != "#FF0000" || c.Colors["dim"] != "#2E8B2E" || c.Colors["mesh"] != "#00E5FF" {
+		t.Fatalf("normalize: %+v", c.Colors)
+	}
+	if !strings.Contains(th.CSS(false), "--accent:#FF0000;") || !strings.Contains(th.CSS(true), "--accent:#39FF14;") {
+		t.Fatal("visitor should get the default when network is off")
+	}
+	if got := newThemeStore(p).Get(); got.Colors["accent"] != "#FF0000" || got.Network {
+		t.Fatalf("not saved: %+v", got)
 	}
 }

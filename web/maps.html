@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Maps · Lantern</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="lib/maplibre-gl.css">
 <style>
   html, body { height: 100%; }
@@ -12,20 +13,20 @@
   #wrap { position: relative; flex: 1 1 auto; min-height: 400px; }
   #map { position: absolute; inset: 0; }
   .float { position: absolute; top: 14px; left: 14px; right: 60px; display: flex; flex-wrap: wrap; gap: 8px; z-index: 2; max-width: 640px; }
-  .float input, .float select { background: #fff; color: #1C1F23; border: none; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .float input, .float select { background: var(--panel); color: var(--accent); border: 1px solid var(--dim); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
   #hits { position: absolute; top: 72px; left: 14px; z-index: 2; width: min(420px, calc(100% - 28px)); max-height: 50vh; overflow: auto;
-    background: #fff; color: #1C1F23; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,.3); }
-  #hits button { display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid #E3E0D8; background: #fff;
-    color: #1C1F23; padding: 12px 14px; min-height: 44px; cursor: pointer; }
-  #hits button:hover { background: #F4F2EC; }
-  #hits small { color: #5A626C; }
+    background: var(--panel); color: var(--text); border: 1px solid var(--dim); box-shadow: 0 2px 12px rgba(0,0,0,.5); }
+  #hits button { display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid var(--grid); background: transparent;
+    color: var(--accent); padding: 12px 14px; min-height: 44px; cursor: pointer; }
+  #hits button:hover { background: #000; }
+  #hits small { color: var(--dim); }
   #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; }
 </style>
 </head>
 <body>
 <header class="top">
   <a class="brand" href="/">
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5B947" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
     <span><b>Lantern</b><small>Offline knowledge drive</small></span>
   </a>
   <nav class="nav" aria-label="Main">
@@ -33,6 +34,7 @@
     <a href="/maps.html" data-id="maps">Maps</a>
     <a href="/relay.html" data-id="relay">Relay</a>
     <a href="/downloads.html" data-id="downloads">Downloads</a>
+    <a href="/settings.html" data-id="settings">Settings</a>
   </nav>
   <span class="pill"><span class="dot"></span>Offline maps · © OpenStreetMap contributors</span>
 </header>
@@ -60,6 +62,9 @@
 <script src="lib/pmtiles.js"></script>
 <script src="lib/basemaps.js"></script>
 <script>
+function themeVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function mapFlavor() { return themeVar('--map') === 'light' ? 'light' : 'dark'; }
+
 Lantern.markNav('maps');
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile);
@@ -75,7 +80,7 @@ function styleFor(fileUrl) {
       protomaps: { type: 'vector', url: 'pmtiles://' + fileUrl,
         attribution: '<a href="https://openstreetmap.org/copyright">© OpenStreetMap contributors</a>' },
     },
-    layers: basemaps.layers('protomaps', basemaps.namedFlavor('light'), { lang: 'en' }),
+    layers: basemaps.layers('protomaps', basemaps.namedFlavor(mapFlavor()), { lang: 'en' }),
   };
 }
 
@@ -126,7 +131,7 @@ function findPlaces(q) {
   hits.querySelectorAll('button').forEach(b => b.onclick = () => {
     const h = list[+b.dataset.i];
     map.flyTo({ center: h.c, zoom: h.layer === 'places' ? 12 : 16 });
-    new maplibregl.Marker({ color: '#D9534F' }).setLngLat(h.c).addTo(map);
+    new maplibregl.Marker({ color: themeVar('--accent') || '#39FF14' }).setLngLat(h.c).addTo(map);
     hits.classList.add('hidden');
   });
 }

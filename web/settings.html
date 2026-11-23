@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · Lantern</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2339FF14' stroke-width='2'%3E%3Cpath d='M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/theme.css">
+<style>
+  .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .preset { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; min-height: 44px; text-align: left;
+    cursor: pointer; background: #050505; color: #CFCFCF; border: 1px solid #333; }
+  .preset[aria-pressed=true] { border: 2px solid var(--pa); }
+  .preset b { color: var(--pa); letter-spacing: .1em; font-size: 14px; }
+  .preset span.note { font-size: 12px; line-height: 1.4; }
+  .sw { display: flex; gap: 4px; }
+  .sw i { width: 22px; height: 22px; display: block; }
+  .two { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; }
+  .two > .card { flex: 1 1 420px; min-width: 0; }
+  .tok { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+  .tok label { flex: 1 1 auto; display: flex; flex-direction: column; line-height: 1.3; cursor: pointer; }
+  .tok label b { color: var(--accent); letter-spacing: .1em; font-size: 13px; }
+  .tok label span { color: var(--text); font-size: 12px; }
+  .tok .hex { color: var(--dim); font-size: 13px; min-width: 72px; text-align: right; }
+  input[type=color] { -webkit-appearance: none; appearance: none; width: 44px; height: 44px; padding: 0; border: 1px solid var(--dim); background: none; cursor: pointer; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type=color]::-webkit-color-swatch { border: 0; }
+  input[type=color]::-moz-color-swatch { border: 0; }
+  .badge { padding: 4px 10px; border: 1px solid currentColor; font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+  .check { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; color: var(--text); font-size: 15px; }
+  .check input { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <span><b>Lantern</b><small>Offline knowledge drive</small></span>
+  </a>
+  <nav class="nav" aria-label="Main">
+    <a href="/" data-id="home">Home</a>
+    <a href="/maps.html" data-id="maps">Maps</a>
+    <a href="/relay.html" data-id="relay">Relay</a>
+    <a href="/downloads.html" data-id="downloads">Downloads</a>
+    <a href="/settings.html" data-id="settings">Settings</a>
+  </nav>
+</header>
+
+<main>
+  <h1 class="sr-only">Lantern settings</h1>
+  <div id="visitorNote" class="banner hidden">You're viewing Lantern from another device. Colors can only be changed on the Lantern computer.</div>
+
+  <h2>Color theme ▸ presets</h2>
+  <div class="presets" id="presets"></div>
+
+  <h2>Custom colors and preview</h2>
+  <div class="two">
+    <div class="card">
+      <div id="tokens"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn" type="button" id="save">Save theme</button>
+        <button class="btn ghost" type="button" id="reset">Reset to FieldMap</button>
+        <span id="saved" class="small muted"></span>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <div class="small muted" style="letter-spacing:.16em">// LIVE PREVIEW</div>
+      <div class="row" style="border:1px solid var(--dim);padding:8px 8px 8px 14px;background:#000;gap:12px">
+        <span aria-hidden="true" style="color:var(--accent);font-weight:700;font-size:18px">&gt;</span>
+        <span style="flex:1 1 auto;color:var(--dim)">SEARCH WIKIPEDIA_</span>
+        <span class="btn" aria-hidden="true">Search</span>
+      </div>
+      <div class="tile" style="min-height:0">
+        <span class="t">Wikipedia</span>
+        <span class="d">The English encyclopedia with full-text search.</span>
+        <span class="m">Example tile</span>
+      </div>
+      <div class="row" style="gap:8px">
+        <span class="badge" style="color:var(--mesh)">● MESH LINK UP</span>
+        <span class="badge" style="color:var(--warn)">▲ AI STANDBY</span>
+        <span class="badge" style="color:var(--bad)">✕ NODE OFFLINE</span>
+      </div>
+      <p class="small" style="margin:0">Body text reads like this. Labels like <span class="muted">// THIS</span> use the dim color.</p>
+      <p id="contrast" class="small hidden" style="margin:0;color:var(--warn)">▲ The dim color is hard to read on black. Pick a brighter one.</p>
+    </div>
+  </div>
+
+  <h2>Options</h2>
+  <div class="card" style="display:flex;flex-direction:column;gap:6px">
+    <label class="check"><input type="checkbox" id="network"> Use this theme on devices viewing Lantern over the network (iPad, phones)</label>
+    <div class="row" style="gap:10px">
+      <span style="color:var(--text)">Map style</span>
+      <label class="check"><input type="radio" name="map" value="dark"> Dark</label>
+      <label class="check"><input type="radio" name="map" value="light"> Light</label>
+    </div>
+  </div>
+</main>
+
+<script src="common.js"></script>
+<script>
+Lantern.markNav('settings');
+const $ = id => document.getElementById(id);
+const KEYS = [
+  ['accent', 'Accent', 'Buttons, headings, the active tab'],
+  ['text', 'Text', 'Body text'],
+  ['dim', 'Dim', 'Labels, frames, secondary text'],
+  ['grid', 'Grid', 'Background grid and dividers'],
+  ['panel', 'Panel', 'Card and panel background'],
+  ['mesh', 'Mesh', 'Radio and Relay status'],
+  ['warn', 'Warning', 'Heads-ups and standby states'],
+  ['bad', 'Error', 'Failures and remove buttons'],
+];
+const PRESETS = [
+  ['green', 'FieldMap Green', 'Matches FieldMap. The default.'],
+  ['amber', 'Amber Terminal', 'Warm and easy on the eyes for long reading.'],
+  ['red', 'Night Red', 'Dim red light keeps your night vision.'],
+  ['arctic', 'Arctic', 'Cool cyan, a little softer than green.'],
+];
+let theme = null, presets = {}, visitor = false;
+
+function lum(hex) {
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+// Show the colors on this page right away, before saving.
+function apply() {
+  for (const [k] of KEYS) document.documentElement.style.setProperty('--' + k, theme.colors[k]);
+  $('contrast').classList.toggle('hidden', (lum(theme.colors.dim) + 0.05) / 0.05 >= 4.5);
+  render();
+}
+
+function render() {
+  $('presets').innerHTML = PRESETS.map(([id, name, note]) => {
+    const p = presets[id] || {};
+    return `<button type="button" class="preset" data-id="${id}" aria-pressed="${theme.preset === id}" style="--pa:${p.accent}" ${visitor ? 'disabled' : ''}>
+      <span class="sw" aria-hidden="true">${['accent', 'text', 'dim', 'grid'].map(k => `<i style="background:${p[k]}"></i>`).join('')}</span>
+      <b>${Lantern.esc(name.toUpperCase())}</b><span class="note">${Lantern.esc(note)}</span></button>`;
+  }).join('');
+  $('tokens').innerHTML = KEYS.map(([k, label, use]) => `
+    <div class="tok">
+      <input id="c-${k}" type="color" value="${theme.colors[k].toLowerCase()}" data-k="${k}" ${visitor ? 'disabled' : ''}>
+      <label for="c-${k}"><b>${label.toUpperCase()}</b><span>${use}</span></label>
+      <span class="hex">${theme.colors[k]}</span>
+    </div>`).join('');
+  $('network').checked = theme.network;
+  document.querySelectorAll('input[name=map]').forEach(r => { r.checked = r.value === theme.map; });
+}
+
+$('presets').addEventListener('click', e => {
+  const b = e.target.closest('.preset');
+  if (!b || visitor) return;
+  theme.preset = b.dataset.id;
+  theme.colors = Object.assign({}, presets[b.dataset.id]);
+  $('saved').textContent = 'Not saved yet.';
+  apply();
+});
+$('tokens').addEventListener('input', e => {
+  const k = e.target.dataset.k;
+  if (!k) return;
+  theme.colors[k] = e.target.value.toUpperCase();
+  theme.preset = 'custom';
+  for (const [kk] of KEYS) document.documentElement.style.setProperty('--' + kk, theme.colors[kk]);
+  e.target.parentElement.querySelector('.hex').textContent = theme.colors[k];
+  $('contrast').classList.toggle('hidden', (lum(theme.colors.dim) + 0.05) / 0.05 >= 4.5);
+  document.querySelectorAll('.preset').forEach(p => p.setAttribute('aria-pressed', 'false'));
+  $('saved').textContent = 'Not saved yet.';
+});
+$('network').onchange = () => { theme.network = $('network').checked; $('saved').textContent = 'Not saved yet.'; };
+document.querySelectorAll('input[name=map]').forEach(r => r.onchange = () => { theme.map = r.value; $('saved').textContent = 'Not saved yet.'; });
+
+$('save').onclick = async () => {
+  const r = await Lantern.api('/api/theme', theme);
+  if (r.theme) { theme = r.theme; apply(); $('saved').textContent = 'Saved. Every page uses it now.'; }
+  else $('saved').textContent = r.error || 'Could not save.';
+};
+$('reset').onclick = () => {
+  theme.preset = 'green';
+  theme.colors = Object.assign({}, presets.green);
+  $('saved').textContent = 'Not saved yet.';
+  apply();
+};
+
+(async () => {
+  const r = await Lantern.api('/api/theme');
+  theme = r.theme; presets = r.presets; visitor = r.visitor;
+  $('visitorNote').classList.toggle('hidden', !visitor);
+  ['save', 'reset', 'network'].forEach(id => { $(id).disabled = visitor; });
+  document.querySelectorAll('input[name=map]').forEach(x => { x.disabled = visitor; });
+  render();
+  $('contrast').classList.toggle('hidden', (lum(theme.colors.dim) + 0.05) / 0.05 >= 4.5);
+})();
+</script>
+</body>
+</html>

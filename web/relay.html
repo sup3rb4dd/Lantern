@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Relay · Lantern</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/theme.css">
 <style>
   .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 14px; }
   .kv dt { color: var(--muted); }
@@ -23,7 +24,7 @@
 <body>
 <header class="top">
   <a class="brand" href="/">
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5B947" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 7h8l1 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8z"/><path d="M12 12c1.2 1 1.2 3 0 4c-1.2-1-1.2-3 0-4z"/></svg>
     <span><b>Lantern</b><small>Offline knowledge drive</small></span>
   </a>
   <nav class="nav" aria-label="Main">
@@ -31,13 +32,13 @@
     <a href="/maps.html" data-id="maps">Maps</a>
     <a href="/relay.html" data-id="relay">Relay</a>
     <a href="/downloads.html" data-id="downloads">Downloads</a>
+    <a href="/settings.html" data-id="settings">Settings</a>
   </nav>
   <span class="pill"><span class="dot"></span>Works with no internet</span>
 </header>
 
 <main>
-  <h1>Lantern Relay</h1>
-  <p class="lead">Answer questions sent over Meshtastic with short answers from this drive. Plug a Meshtastic node into this computer by USB, choose who may ask, and turn Relay on.</p>
+  <h1 class="sr-only">Lantern Relay</h1>
 
   <div id="banner" class="banner hidden"></div>
 
@@ -211,7 +212,7 @@ function render(s) {
   const [tagText, tagClass] = tags[s.state] || tags.off;
   $('stateTag').textContent = tagText;
   $('stateTag').className = tagClass;
-  if (s.state === 'error') $('stateTag').style.background = '#F07A6E'; else $('stateTag').style.background = '';
+  if (s.state === 'error') $('stateTag').style.background = 'var(--bad)'; else $('stateTag').style.background = '';
   $('stateText').textContent = {
     connected: 'Relay is on and listening.',
     connecting: 'Connecting to the node…',
@@ -337,7 +338,7 @@ async function tryAsk() {
   try {
     const r = await Lantern.api('/api/relay/try', { text: t });
     $('tryOut').innerHTML = (r.messages || []).map(m =>
-      `<pre class="mono" style="white-space:pre-wrap;margin:6px 0;padding:8px;border:1px solid var(--line-soft);border-radius:6px">${Lantern.esc(m)}</pre>`).join('') +
+      `<pre class="mono" style="white-space:pre-wrap;margin:6px 0;padding:8px 10px;${m.startsWith('🤖') ? 'border-left:3px solid var(--accent);background:var(--panel)' : 'border:1px solid var(--line-soft);background:#000'}">${Lantern.esc(m)}</pre>`).join('') +
       `<div class="muted">${Lantern.esc(r.info || '')}</div>`;
   } catch (e) { $('tryOut').textContent = 'Lantern stopped responding.'; }
   $('tryBtn').disabled = false;
