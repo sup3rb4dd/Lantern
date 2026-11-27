@@ -1,5 +1,5 @@
 # Builds the Lantern Deck firmware (deck/) and publishes the web flasher to GitHub Pages:
-# https://sup3rb4dd.github.io/lantern/
+# https://sup3rb4dd.github.io/Lantern/
 # Needs Settings › Pages › Source set to "GitHub Actions" (once).
 name: Lantern Deck flasher
 

@@ -30,7 +30,7 @@ nothing installed.
   See [RELAY.md](RELAY.md).
 - **Lantern Deck.** An optional touchscreen panel for Relay on an ESP32 "Cheap Yellow Display",
   plugged into the PC by USB (no WiFi): team messages, nodes heard, Relay status and quick replies.
-  Flash it from the browser at https://sup3rb4dd.github.io/lantern/. See [deck/README.md](deck/README.md).
+  Flash it from the browser at https://sup3rb4dd.github.io/Lantern/. See [deck/README.md](deck/README.md).
 - **Share on my network** (optional): open Lantern from an iPad, phone or another computer on
   the same WiFi. Visitors can read; only the Lantern PC can change things. Optional PIN.
 

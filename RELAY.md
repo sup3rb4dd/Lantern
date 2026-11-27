@@ -132,7 +132,7 @@ An optional touchscreen panel (an ESP32 "Cheap Yellow Display") plugged into the
 USB. It shows the team's messages, the nodes the gateway has heard and Relay's status, and has
 quick-reply buttons (`ACK`, `EN ROUTE`, `ALL CLEAR`, `HOLD` by default) that send on the reply
 channel. Lantern finds it on USB by itself while Relay is on. Flash it from
-https://sup3rb4dd.github.io/lantern/ and see [deck/README.md](deck/README.md).
+https://sup3rb4dd.github.io/Lantern/ and see [deck/README.md](deck/README.md).
 
 | Setting | Default | Meaning |
 |---|---|---|

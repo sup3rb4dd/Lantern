@@ -4,7 +4,7 @@ A touchscreen status panel for Lantern Relay, on the ESP32 "Cheap Yellow Display
 (ESP32-2432S028R, 2.8" 320×240). It plugs into the PC running Lantern by USB and
 uses no WiFi or Bluetooth.
 
-**Flash it from the browser:** https://sup3rb4dd.github.io/lantern/ (Chrome or Edge on a computer).
+**Flash it from the browser:** https://sup3rb4dd.github.io/Lantern/ (Chrome or Edge on a computer).
 
 ## Screens
 
