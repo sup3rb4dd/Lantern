@@ -7,3 +7,4 @@ dist/
 lantern/
 *.log
 deck/.pio/
+motion-detector/.pio/

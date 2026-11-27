@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion Detector · Web Flasher</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root { --bg:#050806; --panel:#0a140d; --line:#1d3a24; --edge:#2e5c3a; --text:#c9f5d3; --muted:#8fbf99; --accent:#7cfc9a; --amber:#ffb547; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 Consolas, "Cascadia Mono", "IBM Plex Mono", ui-monospace, monospace; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 60px; }
+  h1 { color: var(--accent); letter-spacing: 3px; font-size: 28px; margin: 0 0 4px; }
+  h2 { color: var(--muted); font-size: 14px; letter-spacing: 2px; margin: 32px 0 10px; font-weight: 600; }
+  p { margin: 0 0 12px; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+  .row > div { flex: 1 1 260px; }
+  .title { font-weight: 600; color: var(--text); }
+  .small { font-size: 14px; color: var(--muted); }
+  ol { margin: 0; padding-left: 22px; } li { margin: 6px 0; }
+  code { color: var(--accent); }
+  a { color: var(--accent); } a:hover { color: #b6ffc6; }
+  .warn { border-color: var(--amber); color: var(--amber); display: none; }
+  button.flash { min-height: 48px; padding: 0 22px; border-radius: 6px; border: 2px solid var(--accent); background: var(--accent); color: var(--bg);
+    font: inherit; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
+  button.flash.alt { background: transparent; color: var(--accent); }
+  button.flash:hover { filter: brightness(1.1); }
+  button.flash:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+  esp-web-install-button[install-unsupported] button.flash { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>MOTION DETECTOR</h1>
+  <p class="sub">Web flasher · firmware <span id="ver">__VERSION__</span> for the ESP32 "Cheap Yellow Display" (ESP32-2432S028R) + HLK-LD2450 radar</p>
+
+  <div class="card warn" id="unsupported">This page needs Chrome or Edge on a computer (it uses Web Serial). Open it there to flash.</div>
+
+  <p>A people radar: the LD2450 24 GHz mmWave sensor tracks up to 3 moving people out to 6 m (20 ft), and the CYD shows them as blips on a motion-tracker fan with the distance to each. No WiFi. Without the sensor it runs a demo, so you can flash and try it now.</p>
+
+  <h2>FLASH IT</h2>
+  <div class="card row">
+    <div><div class="title">Standard CYD</div><div class="small">Most boards, with one micro-USB port. Start here.</div></div>
+    <esp-web-install-button manifest="manifest-cyd.json">
+      <button slot="activate" class="flash" type="button">CONNECT &amp; FLASH</button>
+      <span slot="unsupported"></span>
+      <span slot="not-allowed">Open this page over https to flash.</span>
+    </esp-web-install-button>
+  </div>
+  <div class="card row">
+    <div><div class="title">Inverted colors</div><div class="small">If the standard version shows a white or light background instead of black, flash this one instead.</div></div>
+    <esp-web-install-button manifest="manifest-cyd-inverted.json">
+      <button slot="activate" class="flash alt" type="button">CONNECT &amp; FLASH</button>
+      <span slot="unsupported"></span>
+      <span slot="not-allowed">Open this page over https to flash.</span>
+    </esp-web-install-button>
+  </div>
+
+  <h2>STEPS</h2>
+  <div class="card">
+    <ol>
+      <li>Close anything else using the CYD's port (Lantern, the Meshtastic app, other flashers).</li>
+      <li>Plug the CYD into this computer with a USB <b>data</b> cable.</li>
+      <li>Press <b>Connect &amp; flash</b>, pick the port (often <code>USB-SERIAL CH340</code> or <code>CP210x</code>), then <b>Install</b>.</li>
+      <li>It restarts into the radar. With no sensor attached it says <b>DEMO-NO SENSOR</b> and shows made-up contacts.</li>
+    </ol>
+  </div>
+
+  <h2>WIRING THE SENSOR</h2>
+  <div class="card">
+    <ol>
+      <li><b>Power:</b> sensor <code>5V</code> to <code>VIN</code> and sensor <code>GND</code> to <code>GND</code> on the CYD's <b>P1</b> connector (4 pins, labelled VIN, TX, RX, GND).</li>
+      <li><b>Data:</b> sensor <code>TX</code> to <code>IO27</code> and sensor <code>RX</code> to <code>IO22</code> on the CYD's <b>CN1</b> connector. CN1's 3.3V pin isn't used; it can't power the sensor.</li>
+      <li>Go by the labels printed on the boards, not wire colors. Both cables likely end in female jumpers, so join them with male-to-male jumper wires.</li>
+      <li>Power it from USB (a phone charger or power bank is fine). The corner turns to <b>SENSOR OK</b> in green.</li>
+    </ol>
+  </div>
+
+  <h2>USING IT</h2>
+  <div class="card">
+    <p>Stand the sensor upright with its gold antenna side facing the room, about chest height. It sees 60° to each side.</p>
+    <p>Tap the screen's corners:</p>
+    <ol>
+      <li><b>Top-left:</b> sound on/off (a ping on each new contact, through a speaker on the CYD's SPEAK connector).</li>
+      <li><b>Top-right:</b> mirror left/right, if people show up on the wrong side.</li>
+      <li><b>Bottom-left:</b> demo on/off.</li>
+      <li><b>Bottom-right:</b> range 6 m, 4 m or 3 m.</li>
+    </ol>
+    <p class="small" style="margin:12px 0 0">Settings are kept when it's unplugged. The CYD's LED turns amber while anyone is in view and red when someone is within 1.5 m (5 ft). The LD2450 tracks movement, so someone standing perfectly still fades out after a few seconds.</p>
+  </div>
+
+  <p class="small">Source: <a href="https://github.com/sup3rb4dd/Lantern/tree/main/motion-detector">github.com/sup3rb4dd/Lantern/motion-detector</a> · Also here: <a href="../">Lantern Deck flasher</a></p>
+</main>
+<script>
+  if (!('serial' in navigator)) document.getElementById('unsupported').style.display = 'block';
+</script>
+</body>
+</html>

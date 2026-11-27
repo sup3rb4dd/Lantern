@@ -92,6 +92,7 @@ launcher/   Go source for Lantern.exe
 web/        Home, Maps, Relay and Downloads pages, plus bundled map libraries (web/lib)
 package/    README.txt shipped on the drive
 deck/       Lantern Deck firmware (PlatformIO) and its web flasher
+motion-detector/  Motion Detector: LD2450 people radar firmware for the CYD (separate from Lantern)
 ```
 
 On the drive, Lantern keeps everything under a `lantern` folder next to the exe:
