@@ -116,6 +116,26 @@ static Target sensorTargets[3];
 static uint32_t lastFrameMs = 0;
 static uint32_t frameCount = 0;
 
+// Each scan (one LD2450 frame, about 10 a second) covers the whole field of view at once.
+// They're drawn as ripples spreading out over the fan, one per scan.
+#define SCAN_RINGS 8
+static uint32_t scanTimes[SCAN_RINGS];
+static int scanHead = 0;
+static float scanHz = 0;
+static uint32_t hzStart = 0, hzCount = 0;
+
+static void noteScan() {
+  uint32_t now = millis();
+  scanTimes[scanHead] = now;
+  scanHead = (scanHead + 1) % SCAN_RINGS;
+  hzCount++;
+  if (now - hzStart >= 2000) {
+    scanHz = hzCount * 1000.0f / (now - hzStart);
+    hzStart = now;
+    hzCount = 0;
+  }
+}
+
 static int16_t ldSigned(uint16_t v) { return (v & 0x8000) ? (int16_t)(v & 0x7FFF) : -(int16_t)(v & 0x7FFF); }
 
 static uint8_t frameBuf[30];
@@ -137,6 +157,7 @@ static void decodeFrame() {
   }
   lastFrameMs = millis();
   frameCount++;
+  noteScan();
 }
 
 // Reads bytes and decodes each complete frame: AA FF 03 00, 3 x 8 bytes, 55 CC.
@@ -275,22 +296,30 @@ static void drawGrid() {
   fb.fillCircle(cx, cy, 3, P_GREEN);
 }
 
-// sweep
-static float sweepDeg = 0, sweepDir = 1;
+// scan ripples: one per frame, spreading over the whole fan (the sensor sees all of it at once)
+static const uint32_t RIPPLE_MS = 450;
 
-static void drawSweep(float dt) {
-  sweepDeg += sweepDir * 70 * dt;
-  if (fabsf(sweepDeg) > FAN) {
-    sweepDeg = sweepDeg > 0 ? FAN : -FAN;
-    sweepDir = -sweepDir;
+static void drawScan() {
+  uint32_t now = millis();
+  for (int i = 0; i < SCAN_RINGS; i++) {
+    uint32_t t = scanTimes[i];
+    if (!t) continue;
+    uint32_t age = now - t;
+    if (age >= RIPPLE_MS) continue;
+    int r = (int)(radius * (float)age / RIPPLE_MS);
+    if (r < 4) continue;
+    uint8_t col = age < RIPPLE_MS / 3 ? P_SWEEP1 : age < RIPPLE_MS * 2 / 3 ? P_SWEEP2 : P_SWEEP3;
+    drawArcLine(r, col);
   }
-  for (int i = 12; i >= 0; i--) {
-    float d = sweepDeg - sweepDir * i * 1.6f;
-    if (fabsf(d) > FAN) continue;
-    uint8_t col = i == 0 ? P_GREEN : i < 4 ? P_SWEEP1 : i < 8 ? P_SWEEP2 : P_SWEEP3;
+  // the fan's edges light up briefly on each scan: everything inside is measured together
+  uint32_t last = scanTimes[(scanHead + SCAN_RINGS - 1) % SCAN_RINGS];
+  if (last && now - last < 90) {
     int x, y;
-    polar(radius, d, x, y);
-    fb.drawLine(cx, cy, x, y, col);
+    polar(radius, -FAN, x, y);
+    fb.drawLine(cx, cy, x, y, P_SWEEP1);
+    polar(radius, FAN, x, y);
+    fb.drawLine(cx, cy, x, y, P_SWEEP1);
+    drawArcLine(radius, P_SWEEP1);
   }
 }
 
@@ -446,7 +475,9 @@ static void drawBars(int count, float nearest, bool demo) {
     fb.drawString(demoForced ? "DEMO" : "DEMO-NO SENSOR", 4, H - 2, 1);
   } else if (sensorOk()) {
     fb.setTextColor(P_GREEN, P_BG);
-    fb.drawString("SENSOR OK", 4, H - 2, 1);
+    char ok[24];
+    snprintf(ok, sizeof ok, "SENSOR OK %.0fHz", scanHz);
+    fb.drawString(ok, 4, H - 2, 1);
   } else {
     fb.setTextColor(P_RED, P_BG);
     fb.drawString("SENSOR LOST", 4, H - 2, 1);
@@ -566,7 +597,15 @@ void loop() {
   bool demo = demoForced || (frameCount == 0 && now - startMs > 3000);
   Target t[3];
   if (demo) {
-    demoStep(dt, t);
+    // the demo "sensor" reports 10 times a second, like the real one
+    static Target demoT[3];
+    static uint32_t lastDemoScan = 0;
+    if (now - lastDemoScan >= 100) {
+      demoStep(lastDemoScan ? (now - lastDemoScan) / 1000.0f : 0.1f, demoT);
+      lastDemoScan = now;
+      noteScan();
+    }
+    memcpy(t, demoT, sizeof t);
   } else {
     memcpy(t, sensorTargets, sizeof t);
     if (!sensorOk())
@@ -576,7 +615,7 @@ void loop() {
 
   fb.fillSprite(P_BG);
   drawGrid();
-  drawSweep(dt);
+  drawScan();
   int count;
   float nearest;
   drawContacts(count, nearest);

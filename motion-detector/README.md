@@ -5,6 +5,12 @@ A people radar on the ESP32 "Cheap Yellow Display" (ESP32-2432S028R) with the Hi
 fan (±60°, out to 6 m / 20 ft) with trails, the distance to each, a contact count and the
 nearest distance. No WiFi or Bluetooth.
 
+How it's drawn: the LD2450 doesn't sweep. Each scan (about 10 a second) covers the whole ±60° fan at
+once, and its receive antennas work out each person's angle. So the display shows one ripple per scan
+spreading across the fan, the fan's edges flash as each scan lands, and the blips move in step with the
+scans. The corner shows the real scan rate (`SENSOR OK 10Hz`). The ripple is slowed down so you can see
+it; the real radio pulse covers the room in a few nanoseconds.
+
 It's its own firmware: flashing it replaces whatever was on the CYD (Lantern Deck, for example),
 and flashing Lantern Deck replaces it.
 
