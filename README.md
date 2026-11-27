@@ -28,6 +28,9 @@ nothing installed.
   An optional **AI helper** (runs on the PC, fully offline) answers plain questions like
   `?ask I have a small cut, how do I close it` with the right pages and a short answer from them.
   See [RELAY.md](RELAY.md).
+- **Lantern Deck.** An optional touchscreen panel for Relay on an ESP32 "Cheap Yellow Display",
+  plugged into the PC by USB (no WiFi): team messages, nodes heard, Relay status and quick replies.
+  Flash it from the browser at https://sup3rb4dd.github.io/lantern/. See [deck/README.md](deck/README.md).
 - **Share on my network** (optional): open Lantern from an iPad, phone or another computer on
   the same WiFi. Visitors can read; only the Lantern PC can change things. Optional PIN.
 
@@ -82,11 +85,13 @@ launcher/   Go source for Lantern.exe
   downloads.go   download queue, Kiwix catalog lookups, Kiwix reader and map installs
   fastdl.go      mirror speed test and parallel, resumable downloads
   relay*.go      Lantern Relay: Meshtastic link, USB serial, Kiwix search, answers
+  deck.go        Lantern Deck: finds the CYD panel on USB and feeds it Relay's status
   ai.go          AI helper: downloads and runs llama-server; relay_ask.go is ?ask
   relay_pdf.go   PDF books: reads PDFs in ZIMs once (pdftext.go, zimdir.go), searches pages
   sys_*.go       Windows job object, hidden child windows, free space, browser launch
 web/        Home, Maps, Relay and Downloads pages, plus bundled map libraries (web/lib)
 package/    README.txt shipped on the drive
+deck/       Lantern Deck firmware (PlatformIO) and its web flasher
 ```
 
 On the drive, Lantern keeps everything under a `lantern` folder next to the exe:

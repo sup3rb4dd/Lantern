@@ -1,5 +1,9 @@
 **Download the `Lantern-v….zip` file** below, unzip it, and copy everything inside its `Lantern` folder to the root of a USB drive (or any folder). Run `Lantern.exe` and use the **Downloads** page to add Wikipedia, books and maps. Windows 64-bit. No install needed.
 
+### New in 1.11
+- **Lantern Deck:** plug an ESP32 "Cheap Yellow Display" into the Lantern PC by USB for a touchscreen Relay panel: the team's messages, the nodes the gateway has heard (signal, battery), Relay and AI helper status, and quick-reply buttons (ACK, EN ROUTE, ALL CLEAR, HOLD) that send on the team channel. No WiFi. Flash it from your browser at https://sup3rb4dd.github.io/lantern/ and Lantern finds it by itself while Relay is on. Set it up under Relay › Settings.
+- Relay now keeps track of each node's signal (SNR) and battery.
+
 ### New in 1.10.1
 - AI helper answers more often: it now reads the top 3 pages it found (not just the best one), picks the right sections of long articles better, and gives what the pages do cover instead of "Not covered here". Answers name the page they used, like "(from 2)".
 

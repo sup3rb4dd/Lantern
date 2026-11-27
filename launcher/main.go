@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.10.1"
+const version = "1.11.0"
 
 // Paths holds every folder the launcher uses, all relative to the drive.
 type Paths struct {
@@ -116,6 +116,8 @@ func main() {
 	}
 	rl.ai = newAI(p) // local AI for ?ask; starts only when a question comes in
 	rl.Start()       // only connects if Lantern Relay is turned on in its settings
+	deck := newDeckLink(rl)
+	deck.Start() // looks for a Lantern Deck screen on USB while Relay is on
 
 	sh := newSharer(p) // "Share on my network" (off unless turned on)
 
@@ -156,6 +158,7 @@ func main() {
 	fmt.Println("Shutting down...")
 	dl.Shutdown()
 	sh.Stop()
+	deck.Stop()
 	rl.Stop()
 	rl.ai.Stop()
 	kx.Stop()

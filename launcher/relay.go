@@ -35,10 +35,15 @@ type relayConfig struct {
 	PauseSeconds     float64  `json:"pauseSeconds"`     // wait between messages
 	MessagesPerReply int      `json:"messagesPerReply"` // messages sent before waiting for ?more
 	AI               string   `json:"ai"`               // off | sources | answer (used by ?ask once the AI is set up)
+	Deck             string   `json:"deck"`             // Lantern Deck screen: "auto", "off" or a port like "COM7"
+	DeckReplies      []string `json:"deckReplies"`      // quick-reply buttons on Lantern Deck
 }
 
+var defaultDeckReplies = []string{"ACK", "EN ROUTE", "ALL CLEAR", "HOLD"}
+
 func defaultRelayConfig() relayConfig {
-	return relayConfig{Port: "auto", ChunkBytes: 200, PauseSeconds: 5, MessagesPerReply: 3, AllowedNodes: []string{}, AI: aiModeAnswer}
+	return relayConfig{Port: "auto", ChunkBytes: 200, PauseSeconds: 5, MessagesPerReply: 3, AllowedNodes: []string{}, AI: aiModeAnswer,
+		Deck: "auto", DeckReplies: append([]string{}, defaultDeckReplies...)}
 }
 
 func (c *relayConfig) normalize() {
@@ -61,6 +66,21 @@ func (c *relayConfig) normalize() {
 	if c.AI != aiModeOff && c.AI != aiModeSources {
 		c.AI = aiModeAnswer
 	}
+	c.Deck = strings.TrimSpace(c.Deck)
+	if c.Deck == "" {
+		c.Deck = "auto"
+	}
+	var replies []string
+	for _, t := range c.DeckReplies {
+		t = deckText(t, 24)
+		if t != "" && len(replies) < 4 {
+			replies = append(replies, t)
+		}
+	}
+	if len(replies) == 0 {
+		replies = append([]string{}, defaultDeckReplies...)
+	}
+	c.DeckReplies = replies
 	seen := map[string]bool{}
 	out := []string{}
 	for _, id := range c.AllowedNodes {
@@ -142,6 +162,15 @@ type relaySession struct {
 	notify  func(string) // sends a message right away (while the AI is busy)
 }
 
+// chatMsg is a text message seen on the mesh, for Lantern Deck's message screen.
+type chatMsg struct {
+	Time int64
+	From uint32
+	Name string
+	Text string
+	Kind string // chat (on a channel), dm (to the gateway), relay (what Relay did), mine (sent from Lantern)
+}
+
 type relayOut struct {
 	to   uint32
 	text string
@@ -170,6 +199,8 @@ type Relay struct {
 	ignored  map[uint32]int64
 	sessions map[uint32]*relaySession
 	logs     []relayLogEntry
+	chat     []chatMsg
+	deck     *deckLink // the Lantern Deck screen, if one is set up
 	acks     map[uint32]chan uint32
 	stop     chan struct{}
 	done     chan struct{}
@@ -464,17 +495,81 @@ func (r *Relay) handleFrame(f []byte) {
 			}
 		}
 	case evText:
+		r.heard(e)
 		r.mu.Lock()
 		my := r.myNode
-		if n := r.nodes[e.from]; n != nil {
-			n.LastHeard = time.Now().Unix()
-		}
 		r.mu.Unlock()
-		if my == 0 || e.to != my || e.from == my {
+		if e.from == my || my == 0 {
+			return
+		}
+		if e.to == meshBroadcast {
+			r.addChat(e.from, e.text, "chat")
+			return
+		}
+		if e.to != my {
 			return // only direct messages to the gateway node
 		}
+		r.addChat(e.from, e.text, "dm")
 		r.in <- relayIn{from: e.from, text: e.text}
+	default:
+		r.heard(e)
 	}
+}
+
+// heard updates a node's last-heard time, signal and battery from any packet it sent.
+func (r *Relay) heard(e meshEvent) {
+	if e.from == 0 {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if e.from == r.myNode {
+		return
+	}
+	n := r.nodes[e.from]
+	if n == nil {
+		if e.kind != evText && e.kind != evTelemetry {
+			return
+		}
+		n = &meshNode{Num: e.from, ID: nodeID(e.from)}
+		r.nodes[e.from] = n
+	}
+	n.LastHeard = time.Now().Unix()
+	if e.snr != nil {
+		n.SNR = e.snr
+	}
+	if e.battery > 0 {
+		n.Battery = e.battery
+	}
+}
+
+func (r *Relay) addChat(from uint32, text, kind string) {
+	name := r.nodeName(from)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.chat = append(r.chat, chatMsg{Time: time.Now().Unix(), From: from, Name: name, Text: text, Kind: kind})
+	if len(r.chat) > 50 {
+		r.chat = r.chat[len(r.chat)-50:]
+	}
+}
+
+// SendChat sends a text message to everyone on the reply channel (Lantern Deck's quick replies).
+func (r *Relay) SendChat(text string) error {
+	text = strings.TrimSpace(text)
+	if text == "" || len(text) > 200 {
+		return errors.New("message must be 1 to 200 bytes")
+	}
+	r.mu.Lock()
+	c, my, ch := r.conn, r.myNode, r.cfg.Channel
+	r.mu.Unlock()
+	if c == nil || r.Status().State != "connected" {
+		return errors.New("Relay isn't connected to the node")
+	}
+	if err := c.send(toRadioText(meshBroadcast, uint32(ch), text, randomPacketID())); err != nil {
+		return err
+	}
+	r.addChat(my, text, "mine")
+	return nil
 }
 
 func (r *Relay) rememberNode(n *meshNode) {
@@ -497,6 +592,12 @@ func (r *Relay) rememberNode(n *meshNode) {
 	if n.LastHeard > old.LastHeard {
 		old.LastHeard = n.LastHeard
 	}
+	if n.SNR != nil {
+		old.SNR = n.SNR
+	}
+	if n.Battery > 0 {
+		old.Battery = n.Battery
+	}
 }
 
 func (r *Relay) nodeName(num uint32) string {
@@ -518,6 +619,12 @@ func (r *Relay) addLog(num uint32, text, info string) {
 	r.logs = append(r.logs, relayLogEntry{Time: time.Now().Unix(), Node: nodeID(num), Name: name, Text: text, Info: info})
 	if len(r.logs) > 100 {
 		r.logs = r.logs[len(r.logs)-100:]
+	}
+	if text != "" && num != r.myNode && info != "" {
+		r.chat = append(r.chat, chatMsg{Time: time.Now().Unix(), From: num, Name: name, Text: info, Kind: "relay"})
+		if len(r.chat) > 50 {
+			r.chat = r.chat[len(r.chat)-50:]
+		}
 	}
 }
 
@@ -927,6 +1034,7 @@ type relayStatus struct {
 	Search  bool            `json:"searchReady"`
 	PDF     *pdfStatus      `json:"pdf,omitempty"`
 	AI      *aiStatus       `json:"ai,omitempty"`
+	Deck    *deckStatus     `json:"deck,omitempty"`
 }
 
 func (r *Relay) Status() relayStatus {
@@ -945,9 +1053,14 @@ func (r *Relay) Status() relayStatus {
 		a := r.ai.Status()
 		as = &a
 	}
+	var ds *deckStatus
+	if r.deck != nil {
+		d := r.deck.Status()
+		ds = &d
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	st := relayStatus{State: r.state, Detail: r.detail, Port: r.portName, Config: r.cfg, Ports: ports, Search: searchReady, PDF: ps, AI: as}
+	st := relayStatus{State: r.state, Detail: r.detail, Port: r.portName, Config: r.cfg, Ports: ports, Search: searchReady, PDF: ps, AI: as, Deck: ds}
 	if st.Ports == nil {
 		st.Ports = []string{}
 	}

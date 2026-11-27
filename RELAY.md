@@ -126,6 +126,19 @@ The Relay page has a **Try it here** box to ask from the PC without a radio. To 
 that's already running instead (LM Studio, Ollama's OpenAI API, another llama-server), start
 Lantern with `LANTERN_AI_URL=http://127.0.0.1:PORT`.
 
+## Lantern Deck
+
+An optional touchscreen panel (an ESP32 "Cheap Yellow Display") plugged into the Lantern PC by
+USB. It shows the team's messages, the nodes the gateway has heard and Relay's status, and has
+quick-reply buttons (`ACK`, `EN ROUTE`, `ALL CLEAR`, `HOLD` by default) that send on the reply
+channel. Lantern finds it on USB by itself while Relay is on. Flash it from
+https://sup3rb4dd.github.io/lantern/ and see [deck/README.md](deck/README.md).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `deck` | `auto` | `auto`, `off`, or the Deck's port like `COM7` |
+| `deckReplies` | 4 buttons | Up to 4 quick replies, 24 characters each |
+
 ## Why not GMRS
 
 FieldMap's GMRS mode can't reach Relay on purpose: automated replies are a gray area under the

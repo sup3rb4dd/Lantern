@@ -1,0 +1,8 @@
+{
+  "name": "Lantern Deck",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    { "chipFamily": "ESP32", "parts": [ { "path": "lantern-deck-cyd.bin", "offset": 0 } ] }
+  ]
+}

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lantern Deck · Web Flasher</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root { --bg:#050806; --panel:#0a140d; --line:#1d3a24; --edge:#2e5c3a; --text:#c9f5d3; --muted:#8fbf99; --accent:#7cfc9a; --amber:#ffb547; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 Consolas, "Cascadia Mono", "IBM Plex Mono", ui-monospace, monospace; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 60px; }
+  h1 { color: var(--accent); letter-spacing: 3px; font-size: 28px; margin: 0 0 4px; }
+  h2 { color: var(--muted); font-size: 14px; letter-spacing: 2px; margin: 32px 0 10px; font-weight: 600; }
+  p { margin: 0 0 12px; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+  .row > div { flex: 1 1 260px; }
+  .title { font-weight: 600; color: var(--text); }
+  .small { font-size: 14px; color: var(--muted); }
+  ol { margin: 0; padding-left: 22px; } li { margin: 6px 0; }
+  code { color: var(--accent); }
+  a { color: var(--accent); } a:hover { color: #b6ffc6; }
+  .warn { border-color: var(--amber); color: var(--amber); display: none; }
+  button.flash { min-height: 48px; padding: 0 22px; border-radius: 6px; border: 2px solid var(--accent); background: var(--accent); color: var(--bg);
+    font: inherit; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
+  button.flash.alt { background: transparent; color: var(--accent); }
+  button.flash:hover { filter: brightness(1.1); }
+  button.flash:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+  esp-web-install-button[install-unsupported] button.flash { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LANTERN DECK</h1>
+  <p class="sub">Web flasher · firmware <span id="ver">__VERSION__</span> for the ESP32 "Cheap Yellow Display" (ESP32-2432S028R)</p>
+
+  <div class="card warn" id="unsupported">This page needs Chrome or Edge on a computer (it uses Web Serial). Open it there to flash.</div>
+
+  <p>Lantern Deck is a touchscreen status panel for Lantern Relay. It plugs into the PC running Lantern by USB and shows the team's messages, the nodes Relay has heard and Relay's status, with quick-reply buttons. No WiFi.</p>
+
+  <h2>FLASH IT</h2>
+  <div class="card row">
+    <div><div class="title">Standard CYD</div><div class="small">Most boards, with one micro-USB port. Start here.</div></div>
+    <esp-web-install-button manifest="manifest-cyd.json">
+      <button slot="activate" class="flash" type="button">CONNECT &amp; FLASH</button>
+      <span slot="unsupported"></span>
+      <span slot="not-allowed">Open this page over https to flash.</span>
+    </esp-web-install-button>
+  </div>
+  <div class="card row">
+    <div><div class="title">Inverted colors</div><div class="small">If the standard version shows a white or light background instead of black (common on boards with two USB ports), flash this one instead.</div></div>
+    <esp-web-install-button manifest="manifest-cyd-inverted.json">
+      <button slot="activate" class="flash alt" type="button">CONNECT &amp; FLASH</button>
+      <span slot="unsupported"></span>
+      <span slot="not-allowed">Open this page over https to flash.</span>
+    </esp-web-install-button>
+  </div>
+
+  <h2>STEPS</h2>
+  <div class="card">
+    <ol>
+      <li>Close Lantern (or turn Relay off), the Meshtastic app and any other flasher, so the USB port is free.</li>
+      <li>Plug the CYD into this computer with a USB <b>data</b> cable.</li>
+      <li>Press <b>Connect &amp; flash</b>, pick the port (often <code>USB-SERIAL CH340</code> or <code>CP210x</code>), then <b>Install</b>. Erasing first is fine; the Deck keeps no settings.</li>
+      <li>When it finishes, the screen says <b>Waiting for Lantern</b>.</li>
+    </ol>
+  </div>
+
+  <h2>USE IT</h2>
+  <div class="card">
+    <ol>
+      <li>Plug the Deck into the PC that runs Lantern (1.11 or newer), and open Lantern.</li>
+      <li>Turn Relay on (Relay page). Lantern finds the Deck on USB by itself within a few seconds. The Relay page shows <b>Lantern Deck: Connected</b>.</li>
+      <li>Tabs along the bottom: <b>MSG</b> (team chat, questions to Relay and its answers), <b>NODES</b> (last heard, signal, battery), <b>RELAY</b> (status, questions today, AI helper).</li>
+      <li>Quick replies: tap a button, then tap <b>SEND?</b> within 3 seconds. It goes out on Relay's reply channel. Change the buttons in Lantern under Relay › Settings.</li>
+    </ol>
+    <p class="small" style="margin:12px 0 0">Taps landing in the wrong spot? Some CYDs mount the touch panel differently; the touch mapping is in <code>readTouch()</code> in the firmware source.</p>
+  </div>
+
+  <p class="small">Source: <a href="https://github.com/sup3rb4dd/lantern/tree/main/deck">github.com/sup3rb4dd/lantern/deck</a></p>
+</main>
+<script>
+  if (!('serial' in navigator)) document.getElementById('unsupported').style.display = 'block';
+</script>
+</body>
+</html>

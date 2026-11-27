@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"sync"
 )
@@ -19,6 +20,7 @@ const (
 	portText      = 1
 	portNodeInfo  = 4
 	portRouting   = 5
+	portTelemetry = 67
 	maxFrame      = 512
 )
 
@@ -33,14 +35,17 @@ const (
 	evUser
 	evRouting
 	evRebooted
+	evTelemetry
 )
 
 type meshNode struct {
-	Num       uint32 `json:"num"`
-	ID        string `json:"id"`
-	LongName  string `json:"longName"`
-	ShortName string `json:"shortName"`
-	LastHeard int64  `json:"lastHeard"`
+	Num       uint32   `json:"num"`
+	ID        string   `json:"id"`
+	LongName  string   `json:"longName"`
+	ShortName string   `json:"shortName"`
+	LastHeard int64    `json:"lastHeard"`
+	SNR       *float64 `json:"snr,omitempty"`     // signal-to-noise of the last packet heard, in dB
+	Battery   int      `json:"battery,omitempty"` // percent; 101 means on external power
 }
 
 type meshEvent struct {
@@ -51,8 +56,17 @@ type meshEvent struct {
 	channel      uint32
 	packetID     uint32
 	text         string
-	requestID    uint32 // routing: the packet this answers
-	routingError uint32 // routing: 0 means delivered
+	requestID    uint32   // routing: the packet this answers
+	routingError uint32   // routing: 0 means delivered
+	snr          *float64 // packet: rx_snr, when the node reported one
+	battery      int      // telemetry: battery percent (0 = not reported)
+}
+
+func f32(v uint64) float64 { return float64(math.Float32frombits(uint32(v))) }
+
+func snrPtr(v float64) *float64 {
+	v = math.Round(v*4) / 4
+	return &v
 }
 
 func nodeID(num uint32) string { return fmt.Sprintf("!%08x", num) }
@@ -112,14 +126,31 @@ func parseNodeInfo(b []byte) *meshNode {
 			n.Num = r.u32()
 		case 2:
 			parseUser(n, r.data)
+		case 4:
+			if r.wire == 5 {
+				n.SNR = snrPtr(f32(r.val))
+			}
 		case 5:
 			n.LastHeard = int64(r.u32())
+		case 6:
+			n.Battery = batteryLevel(r.data)
 		}
 	}
 	if n.ID == "" {
 		n.ID = nodeID(n.Num)
 	}
 	return n
+}
+
+// batteryLevel reads battery_level from a DeviceMetrics message.
+func batteryLevel(b []byte) int {
+	r := pbReader{b: b}
+	for r.next() {
+		if r.field == 1 && r.wire == 0 {
+			return int(r.val)
+		}
+	}
+	return 0
 }
 
 func parseUser(n *meshNode, b []byte) {
@@ -151,6 +182,10 @@ func parseMeshPacket(e *meshEvent, b []byte) {
 			decoded = r.data
 		case 6:
 			e.packetID = r.u32()
+		case 8:
+			if r.wire == 5 && r.val != 0 {
+				e.snr = snrPtr(f32(r.val))
+			}
 		}
 	}
 	if decoded == nil {
@@ -179,6 +214,14 @@ func parseMeshPacket(e *meshEvent, b []byte) {
 		parseUser(e.node, payload)
 		if e.node.ID == "" {
 			e.node.ID = nodeID(e.from)
+		}
+	case portTelemetry:
+		e.kind = evTelemetry
+		t := pbReader{b: payload}
+		for t.next() {
+			if t.field == 2 && t.wire == 2 {
+				e.battery = batteryLevel(t.data)
+			}
 		}
 	case portRouting:
 		e.kind = evRouting

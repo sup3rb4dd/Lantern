@@ -6,3 +6,4 @@ dist/
 # Content and runtime files, if someone runs Lantern from the repo
 lantern/
 *.log
+deck/.pio/

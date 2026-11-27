@@ -53,6 +53,7 @@
       <dt>Connected on</dt><dd id="port">—</dd>
       <dt>Search</dt><dd id="search">—</dd>
       <dt>PDF books</dt><dd id="pdf">—</dd>
+      <dt>Lantern Deck</dt><dd id="deck">—</dd>
     </dl>
     <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)">
       <div class="grow small muted">Radio check: the gateway broadcasts a short test message. If a nearby node repeats it, the result shows in Activity below, and it appears in chat on that channel.</div>
@@ -125,8 +126,14 @@
       <label>Messages per answer
         <input id="perReply" type="number" min="1" max="10" step="1">
       </label>
+      <label>Lantern Deck screen
+        <select id="deckSel"></select>
+      </label>
+      <label>Deck quick replies (comma between)
+        <input id="deckReplies" type="text" placeholder="ACK, EN ROUTE, ALL CLEAR, HOLD" autocomplete="off">
+      </label>
     </div>
-    <p class="muted small" style="margin:14px 0 0">Channel 0 is the node's primary channel. Meshtastic text tops out a little over 200 bytes, and an emoji takes 4. Longer pauses are kinder to a busy mesh. After each answer the asker sends <code>?more</code> to get the next part.</p>
+    <p class="muted small" style="margin:14px 0 0">Channel 0 is the node's primary channel. Meshtastic text tops out a little over 200 bytes, and an emoji takes 4. Longer pauses are kinder to a busy mesh. After each answer the asker sends <code>?more</code> to get the next part. Lantern Deck is a small touchscreen plugged into this PC by USB that shows Relay, the team's messages and nodes; its quick replies (up to 4) go out on the reply channel.</p>
     <div class="row" style="margin-top:14px">
       <button class="btn" id="saveBtn" type="button">Save settings</button>
       <span class="muted small" id="saveMsg"></span>
@@ -199,6 +206,12 @@ function fillForm(s) {
   $('chunkBytes').value = c.chunkBytes;
   $('pause').value = c.pauseSeconds;
   $('perReply').value = c.messagesPerReply;
+  const dOpts = [['auto', 'Find it automatically (USB)'], ['off', 'Off']]
+    .concat(s.ports.map(p => [p, 'USB · ' + p]));
+  if (!dOpts.some(o => o[0] === c.deck)) dOpts.push([c.deck, 'USB · ' + c.deck + ' (not plugged in)']);
+  $('deckSel').innerHTML = dOpts.map(([v, l]) => `<option value="${Lantern.esc(v)}">${Lantern.esc(l)}</option>`).join('');
+  $('deckSel').value = c.deck;
+  $('deckReplies').value = (c.deckReplies || []).join(', ');
   formLoaded = true;
 }
 
@@ -223,6 +236,11 @@ function render(s) {
   $('toggleBtn').className = s.config.enabled ? 'btn ghost' : 'btn';
   $('myNode').textContent = s.myNode ? nodeLabel(s.myNode) : '—';
   $('port').textContent = s.port || '—';
+  const d = s.deck || { state: 'off' };
+  $('deck').innerHTML = d.state === 'connected'
+    ? '<span style="color:var(--ok)">Connected</span> on ' + Lantern.esc(d.port) + (d.version ? ' · firmware ' + Lantern.esc(d.version) : '')
+    : d.state === 'searching' ? 'Not plugged in (looking for it on USB)'
+    : s.config.deck === 'off' ? 'Off' : 'Turn Relay on to use it';
   $('search').innerHTML = s.searchReady
     ? '<span style="color:var(--ok)">Ready</span>: searches everything on the drive'
     : '<span style="color:var(--bad)">Not ready</span>: download Wikipedia or a guide first (<a href="/downloads.html">Downloads</a>)';
@@ -395,6 +413,8 @@ $('saveBtn').onclick = async () => {
   const ok = await save({
     port, channel: +$('channel').value, chunkBytes: +$('chunkBytes').value,
     pauseSeconds: +$('pause').value, messagesPerReply: +$('perReply').value,
+    deck: $('deckSel').value,
+    deckReplies: $('deckReplies').value.split(',').map(t => t.trim()).filter(Boolean),
   }, 'Saved.');
   if (ok) fillForm(last);
 };

@@ -1,0 +1,63 @@
+# Builds the Lantern Deck firmware (deck/) and publishes the web flasher to GitHub Pages:
+# https://sup3rb4dd.github.io/lantern/
+# Needs Settings › Pages › Source set to "GitHub Actions" (once).
+name: Lantern Deck flasher
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'deck/**', '.github/workflows/deck.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('deck/platformio.ini') }}
+
+      - name: Build firmware
+        run: |
+          pip install -q platformio
+          cd deck && pio run
+
+      - name: Assemble the flasher site
+        run: |
+          VERSION=$(grep -oE 'DECK_VERSION=\\"[^\\]+' deck/platformio.ini | sed 's/.*"//')
+          mkdir -p site
+          cp deck/flasher/* site/
+          cp deck/.pio/build/cyd/lantern-deck-cyd.bin site/
+          cp deck/.pio/build/cyd-inverted/lantern-deck-cyd-inverted.bin site/
+          sed -i "s/__VERSION__/$VERSION/g" site/*.json site/index.html
+          echo "Lantern Deck $VERSION"; ls -la site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
